@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/router"
 import { ethers } from "ethers"
-import factoryArtifact from "../../artifacts/contracts/Factory.sol/EtherFunFactory.json";
+import factoryArtifact from "../artifacts/contracts/Factory.sol/EtherFunFactory.json";
 import { News } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast"
