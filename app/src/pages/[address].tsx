@@ -214,13 +214,11 @@ export default function Component({ wallet }: { wallet: ethers.Signer | null }) 
     const tokenAddress = activeTab === 'buy' ? article?.positiveToken : article?.negativeToken
     if (!article?.address || !amount || !tokenAddress || !testWallet) return
     let txHash = ''
-    if (activeTab === 'buy') {
-      console.log("!!!!!11!  buy", tokenAddress, amount)
-
+    if (activeTab == 'buy') {
+      console.log(activeTab, tokenAddress, amount)
       txHash = await buyInUniswap(tokenAddress as string, ethers.utils.parseEther(amount.toString()), testWallet)
     } else {
       txHash = await sellInUniswap(tokenAddress as string, ethers.utils.parseEther(amount.toString()), testWallet)
-      console.log("!!!!!!!!! sell", tokenAddress, amount)
     }
     await fetchData()
     toast({
@@ -336,6 +334,16 @@ export default function Component({ wallet }: { wallet: ethers.Signer | null }) 
                     defaultValue="0" 
                     className="h-14 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 focus-visible:border-[#E5E5E5]"
                   />
+                  <RadioGroup defaultValue="positive" onValueChange={(value) => setActivePosition(value as 'positive' | 'negative')}>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="positive" id="positive" />
+                      <Label htmlFor="positive">Positive</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="negative" id="negative" />
+                      <Label htmlFor="negative">Negative</Label>
+                    </div>
+                  </RadioGroup>
                 </TabsContent>
               </Tabs>
             ) : (
@@ -457,7 +465,7 @@ async function sellToken(saleAddress: string, amount: string, wallet: ethers.Sig
 }
 
 async function sellInUniswap(tokenAddress: string, amount: BigNumber, wallet: ethers.Signer) {
-  console.log("!!!!!22!  buyInUniswap", tokenAddress, amount)
+  console.log("buyInUniswap", tokenAddress, amount)
   const oldBalance = await (new ethers.Contract(tokenAddress, ["function balanceOf(address) view returns (uint256)"], provider)).balanceOf(await wallet.getAddress())
   console.log("oldBalance", ethers.utils.formatEther(oldBalance.toString()))
   const uniswap = new UniswapV2Service({

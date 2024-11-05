@@ -14,8 +14,8 @@ const ERC20_ABI = [
   'function approve(address spender, uint256 amount) external returns (bool)',
   'function allowance(address owner, address spender) external view returns (uint256)',
 ];
-const routerAddress = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
-const wethAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const routerAddress = "0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3";
+const wethAddress = "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14";
 interface SwapConfig {
   provider: ethers.providers.Provider;
   signer: ethers.Signer;
@@ -41,6 +41,8 @@ export class UniswapV2Service {
     slippageTolerance: number // 例: 0.5 = 0.5%
   ): Promise<{output: BigNumber, txHash: string}> {
     // トークンコントラクトのインスタンス化
+    console.log("!!!!!22!  swapTokensForETH", tokenAddress, amountIn)
+    
     const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.signer);
     const signerAddress = await this.signer.getAddress();
 
@@ -52,7 +54,6 @@ export class UniswapV2Service {
     }
     let expectedOutput;
     try {
-
       [, expectedOutput] = await this.router.getAmountsOut(amountIn, [
         tokenAddress,
         this.wethAddress,
@@ -100,11 +101,12 @@ export class UniswapV2Service {
       console.error('Error calculating expected output:', error);
     }
 
-    // スリッページを考慮した最小出力量を計算
-
+    console.log(minOutput)
 
     // スワップを実行
     const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20分
+    console.log("wethAddress", this.wethAddress)
+    console.log("tokenAddress", tokenAddress)
     const tx = await this.router.swapExactETHForTokens(
       minOutput || 0,
       [this.wethAddress, tokenAddress],
