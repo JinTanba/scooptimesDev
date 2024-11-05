@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import factoryArtifact from "../artifacts/contracts/Factory.sol/EtherFunFactory.json";
-import saleArtifact from "../artifacts/contracts/SaleContract.sol/EtherFunSale.json";
+import factoryArtifact from "../EtherFunFactory.json";
+import saleArtifact from "../EtherfunSale.json";
 import { ethers } from "ethers";
 
 
