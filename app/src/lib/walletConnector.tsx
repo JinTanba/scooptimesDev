@@ -5,7 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { ethers } from "ethers";
 
-const WalletConnector = ({ onWalletChange }: { onWalletChange: (signer: ethers.Signer) => void }) => {
+const WalletConnector = ({ onWalletChange }: { onWalletChange: (signer: ethers.Signer | null) => void }) => {
   const [account, setAccount] = useState("");
   const [chainId, setChainId] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
@@ -23,6 +23,16 @@ const WalletConnector = ({ onWalletChange }: { onWalletChange: (signer: ethers.S
     blockExplorerUrls: ["https://sepolia.etherscan.io/"]
   };
 
+  const disconnectWallet = async () => {
+    try {
+      setAccount("");
+      setChainId("");
+      onWalletChange(null);
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
   const connectWallet = async () => {
     try {
       setIsConnecting(true);
@@ -32,7 +42,7 @@ const WalletConnector = ({ onWalletChange }: { onWalletChange: (signer: ethers.S
         throw new Error("Please install MetaMask to use this feature");
       }
 
-      // Request account access
+      // This will open MetaMask popup for account selection
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts"
       });
@@ -45,13 +55,11 @@ const WalletConnector = ({ onWalletChange }: { onWalletChange: (signer: ethers.S
       // Check if we're on Base Sepolia
       if (chainId !== "0xaa36a7") {
         try {
-          // Try to switch to Base Sepolia
           await window.ethereum.request({
             method: "wallet_switchEthereumChain",
             params: [{ chainId: "0xaa36a7" }]
           });
         } catch (switchError) {
-          // If the chain hasn't been added to MetaMask
           if (switchError.code === 4902) {
             await window.ethereum.request({
               method: "wallet_addEthereumChain",
@@ -80,13 +88,19 @@ const WalletConnector = ({ onWalletChange }: { onWalletChange: (signer: ethers.S
   useEffect(() => {
     if (window.ethereum) {
       window.ethereum.on("accountsChanged", (accounts) => {
-        setAccount(accounts[0] || "");
-        connectWallet();
+        if (accounts.length === 0) {
+          disconnectWallet();
+        } else {
+          setAccount(accounts[0]);
+          connectWallet();
+        }
       });
 
+      window.ethereum.on("chainChanged", () => {
+        connectWallet();
+      });
     }
-
-    connectWallet()
+    
     return () => {
       if (window.ethereum) {
         window.ethereum.removeListener("accountsChanged", connectWallet);
@@ -105,13 +119,20 @@ const WalletConnector = ({ onWalletChange }: { onWalletChange: (signer: ethers.S
       )}
       
       {account ? (
-        <div className="flex items-center gap-2">
+        <div className="space-y-4">
           <Alert>
             <AlertTitle>Connected to MetaMask</AlertTitle>
             <AlertDescription>
               Account: {account.slice(0, 6)}...{account.slice(-4)}
             </AlertDescription>
           </Alert>
+          <Button 
+            onClick={disconnectWallet}
+            variant="destructive"
+            className="w-full"
+          >
+            Disconnect
+          </Button>
         </div>
       ) : (
         <Button 
