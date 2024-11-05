@@ -384,7 +384,7 @@ export default function Component({ wallet }: { wallet: ethers.Signer | null }) 
                 onClick={async () => {
                   console.log("article.balance", article.balance)
                   console.log("claim", ethers.BigNumber.from(article.balance).gt(0))
-                  await claimTokens(article.address)
+                  await claimTokens(article.address, testWallet)
                   await fetchData()
                   toast({
                     title: "Tokens Claimed",
@@ -487,7 +487,7 @@ async function buyInUniswap(tokenAddress: string, amount: BigNumber, wallet: eth
 }
 
 async function claimTokens(saleAddress: string, wallet: ethers.Signer) {
-  console.log("claimTokens", saleAddress, await wallet.getAddress())
+  console.log("claimTokens", saleAddress)
   const factory = new ethers.Contract(factoryAddress, factoryArtifact.abi, wallet)
   const tx = await factory.claim(saleAddress)
   const receipt = await tx.wait()
