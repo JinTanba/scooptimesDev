@@ -322,7 +322,7 @@ const SocialLinks = ({ twitter, telegram, website, setTwitter, setTelegram, setW
 }
 
 
-const Form = () => {
+const Form = ({ wallet }: { wallet: ethers.Signer | null }) => {
   const [title, setTitle] = useState("")
   const [symbol, setSymbol] = useState("")
   const [bio, setBio] = useState("")
@@ -333,7 +333,6 @@ const Form = () => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [txHash, setTxHash] = useState<string | null>(null);
-  const [wallet, setWallet] = useState<ethers.Signer | null>(null);
   //connect Metamask
   const { toast } = useToast()
 
@@ -520,7 +519,7 @@ const Form = () => {
   )
 }
 
-const ModalContent = ({ closeModal }: { closeModal: () => void }) => {
+const ModalContent = ({ closeModal, wallet }: { closeModal: () => void, wallet: ethers.Signer | null }) => {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -547,7 +546,7 @@ const ModalContent = ({ closeModal }: { closeModal: () => void }) => {
           <p className="text-xl">Token Creation Edition</p>
         </div>
         <div className="grid grid-cols-2 gap-8">
-          <Form />
+          <Form wallet={wallet} />
         </div>
         <Toaster />
       </motion.div>
@@ -664,6 +663,7 @@ export default function Component({ wallet }: { wallet: ethers.Signer | null }) 
           {isModalOpen && (
             <ModalContent 
               closeModal={closeModal}
+              wallet={wallet}
             />
           )}
         </AnimatePresence>
