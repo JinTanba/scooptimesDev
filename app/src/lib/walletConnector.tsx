@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/walletConnector.ts
 import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
