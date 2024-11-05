@@ -1,4 +1,4 @@
-// @ts-nocheck
+//@ts-nocheck
 'use client'
 
 import Image from "next/image"
@@ -212,13 +212,14 @@ export default function Component({ wallet }: { wallet: ethers.Signer | null }) 
 
   const handleSwap = async () => {
     const tokenAddress = activeTab === 'buy' ? article?.positiveToken : article?.negativeToken
-    if (!article?.address || !amount || !tokenAddress) return
+    if (!article?.address || !amount || !tokenAddress || !testWallet) return
     let txHash = ''
     if (activeTab === 'buy') {
       console.log("!!!!!11!  buy", tokenAddress, amount)
-      txHash = await buyInUniswap(tokenAddress as string, ethers.utils.parseEther(amount.toString()))
+
+      txHash = await buyInUniswap(tokenAddress as string, ethers.utils.parseEther(amount.toString()), testWallet)
     } else {
-      txHash = await sellInUniswap(tokenAddress as string, ethers.utils.parseEther(amount.toString()))
+      txHash = await sellInUniswap(tokenAddress as string, ethers.utils.parseEther(amount.toString()), testWallet)
       console.log("!!!!!!!!! sell", tokenAddress, amount)
     }
     await fetchData()
