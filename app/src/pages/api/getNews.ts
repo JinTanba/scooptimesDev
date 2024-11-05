@@ -4,8 +4,8 @@ import saleArtifact from "../../EtherfunSale.json";
 import { ethers } from "ethers";
 import { SaleCreatedEvent } from "../../types";
 
-const factoryAddress = "0xa24e1a98642a63961FBBb662B7CfC41cbd313FC9";
-const provider = new ethers.providers.JsonRpcProvider("https://base-sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
+const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c";
+const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
 const factory = new ethers.Contract(factoryAddress, factoryArtifact.abi, provider);
 
 export default async function handler(

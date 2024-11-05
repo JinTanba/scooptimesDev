@@ -12,15 +12,15 @@ const WalletConnector = ({ onWalletChange }: { onWalletChange: (signer: ethers.S
   const [error, setError] = useState("");
 
   const baseSepolia = {
-    chainId: "0x14a34",
-    chainName: "Base Sepolia",
-    rpcUrls: ["https://base-sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65"],
+    chainId: "0xaa36a7",
+    chainName: "Sepolia",
+    rpcUrls: ["https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65"],
     nativeCurrency: {
       name: "ETH",
       symbol: "ETH",
       decimals: 18
     },
-    blockExplorerUrls: ["https://sepolia.basescan.org"]
+    blockExplorerUrls: ["https://sepolia.etherscan.io/"]
   };
 
   const connectWallet = async () => {
@@ -43,12 +43,12 @@ const WalletConnector = ({ onWalletChange }: { onWalletChange: (signer: ethers.S
       });
 
       // Check if we're on Base Sepolia
-      if (chainId !== "0x14a34") {
+      if (chainId !== "0xaa36a7") {
         try {
           // Try to switch to Base Sepolia
           await window.ethereum.request({
             method: "wallet_switchEthereumChain",
-            params: [{ chainId: "0x14a34" }]
+            params: [{ chainId: "0xaa36a7" }]
           });
         } catch (switchError) {
           // If the chain hasn't been added to MetaMask
@@ -84,12 +84,9 @@ const WalletConnector = ({ onWalletChange }: { onWalletChange: (signer: ethers.S
         connectWallet();
       });
 
-      window.ethereum.on("chainChanged", (chainId) => {
-        setChainId(chainId);
-        connectWallet();
-      });
     }
 
+    connectWallet()
     return () => {
       if (window.ethereum) {
         window.ethereum.removeListener("accountsChanged", connectWallet);

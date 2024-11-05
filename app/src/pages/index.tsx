@@ -22,9 +22,9 @@ import { Toaster } from "@/components/ui/toaster";
 import WalletConnector from "@/lib/walletConnector";
 // Font settings
 const testPrivateKey = "68bf6ec02461aecaa2d401ff255a39dc1f97a23f4755837b0a06391513101846";
-const provider = new ethers.providers.JsonRpcProvider("https://base-sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
+const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
 const testWallet = new ethers.Wallet(testPrivateKey, provider);
-const factoryAddress = "0xa24e1a98642a63961FBBb662B7CfC41cbd313FC9";
+const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c";
 
 
 
@@ -596,12 +596,13 @@ export default function Component({ wallet }: { wallet: ethers.Signer | null }) 
   const openModal = () => setIsModalOpen(true)
   const closeModal = () => setIsModalOpen(false)
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
       const imageUrl = URL.createObjectURL(file)
       setUploadedImage(imageUrl)
     }
+    await uploadImage(file)
   }
 
   return (
@@ -776,7 +777,7 @@ export default function Component({ wallet }: { wallet: ethers.Signer | null }) 
 
 function NewsContainer({ dispatch, news }: { dispatch: Dispatch<NewsAction>, news: News[] }) {
   useEffect(() => {
-    const provider = new ethers.providers.JsonRpcProvider("https://base-sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
+    const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
     const factory = new ethers.Contract(
       factoryAddress,
       [
@@ -879,4 +880,33 @@ function NewsContainer({ dispatch, news }: { dispatch: Dispatch<NewsAction>, new
       </AnimatePresence>
     </div>
   );
+}
+
+async function uploadImage(imageFile: File): Promise<string> {
+  const reader = new FileReader();
+  
+  const base64Promise = new Promise<string>((resolve, reject) => {
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = (e) => reject(e);
+  });
+
+  reader.readAsDataURL(imageFile);
+  const base64Data = await base64Promise;
+
+  const response = await fetch('/api/uploadIPFS', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      icon: base64Data,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to upload image');
+  }
+
+  const data = await response.json();
+  return data.iconUrl;
 }
