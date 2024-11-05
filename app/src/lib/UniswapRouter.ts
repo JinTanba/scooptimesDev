@@ -59,7 +59,6 @@ export class UniswapV2Service {
       ]);
     } catch (error) {
       console.error('Error calculating expected output:', error);
-      throw error;
     }
 
 
@@ -99,7 +98,6 @@ export class UniswapV2Service {
       .div(1000);
     } catch (error) {
       console.error('Error calculating expected output:', error);
-      throw error;
     }
 
     // スリッページを考慮した最小出力量を計算
