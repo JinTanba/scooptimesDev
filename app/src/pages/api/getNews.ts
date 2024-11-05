@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import factoryArtifact from "../EtherFunFactory.json";
-import saleArtifact from "../EtherfunSale.json";
+import factoryArtifact from "../../EtherFunFactory.json";
+import saleArtifact from "../../EtherfunSale.json";
 import { ethers } from "ethers";
 import { SaleCreatedEvent } from "../../types";
 
