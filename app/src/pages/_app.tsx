@@ -5,6 +5,7 @@ import  useMetaMaskWallet  from "@/lib/walletConnector"; // フックをイン�
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { ethers } from "ethers";
 
 // WalletProps の型定義を追加
 interface WalletProps {
