@@ -2,7 +2,8 @@ require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
 // AlchemyのRPC URLを定数として定義
-const ALCHEMY_RPC_URL = "https://base-sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65";
+const ALCHEMY_RPC_URL = "https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65";
+const SEPOLIA_RPC_URL = "https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65";
 const PRIVATE_KEY = "68bf6ec02461aecaa2d401ff255a39dc1f97a23f4755837b0a06391513101846";
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -26,6 +27,12 @@ module.exports = {
           apiUrl: "https://api-sepolia.basescan.org"
         }
       }
+    },
+    sepolia: {
+      url: SEPOLIA_RPC_URL,
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+      chainId: 11155111,
+      gasPrice: "auto",
     }
   },
   solidity: {

@@ -50,7 +50,7 @@ contract EtherfunSale is ReentrancyGuard {
     address[] public tokenHolders;
     mapping(address => bool) public isTokenHolder;
 
-    address public wethAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public wethAddress = 0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9;
     uint256 public feePercent;
     address public feeWallet = 0xe97203B9AD2B6EfCDddDA642c798020c56eBFFC3;
 

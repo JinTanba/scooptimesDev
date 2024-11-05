@@ -487,6 +487,7 @@ async function buyInUniswap(tokenAddress: string, amount: BigNumber, wallet: eth
 }
 
 async function claimTokens(saleAddress: string, wallet: ethers.Signer) {
+  console.log("claimTokens", saleAddress, await wallet.getAddress())
   const factory = new ethers.Contract(factoryAddress, factoryArtifact.abi, wallet)
   const tx = await factory.claim(saleAddress)
   const receipt = await tx.wait()
