@@ -50,19 +50,24 @@ export class UniswapV2Service {
       const approveTx = await tokenContract.approve(this.router.address, amountIn);
       await approveTx.wait();
     }
+    let expectedOutput;
+    try {
 
-    // 予想される出力量を取得
-    const [, expectedOutput] = await this.router.getAmountsOut(amountIn, [
-      tokenAddress,
-      this.wethAddress,
-    ]);
+      [, expectedOutput] = await this.router.getAmountsOut(amountIn, [
+        tokenAddress,
+        this.wethAddress,
+      ]);
+    } catch (error) {
+      console.error('Error calculating expected output:', error);
+      throw error;
+    }
 
 
     // スワップを実行
     const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20分
     const tx = await this.router.swapExactTokensForETH(
       amountIn,
-      expectedOutput,
+      expectedOutput||0,
       [tokenAddress, this.wethAddress],
       signerAddress,
       deadline
@@ -83,19 +88,27 @@ export class UniswapV2Service {
     const signerAddress = await this.signer.getAddress();
 
     // 予想される出力量を取得
-    const [, expectedOutput] = await this.router.getAmountsOut(amountInEth, [
-      this.wethAddress,
-      tokenAddress,
-    ]);
+    let minOutput;
+    let expectedOutput;
+    try {
+      [, expectedOutput] = await this.router.getAmountsOut(amountInEth, [
+        this.wethAddress,
+        tokenAddress,
+      ]);
+      minOutput = expectedOutput.mul(1000 - Math.floor(slippageTolerance * 10))
+      .div(1000);
+    } catch (error) {
+      console.error('Error calculating expected output:', error);
+      throw error;
+    }
 
     // スリッページを考慮した最小出力量を計算
-    const minOutput = expectedOutput.mul(1000 - Math.floor(slippageTolerance * 10))
-      .div(1000);
+
 
     // スワップを実行
     const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20分
     const tx = await this.router.swapExactETHForTokens(
-      minOutput,
+      minOutput || 0,
       [this.wethAddress, tokenAddress],
       signerAddress,
       deadline,
@@ -103,7 +116,7 @@ export class UniswapV2Service {
     );
 
     const receipt = await tx.wait();
-    return { output: expectedOutput, txHash: receipt.transactionHash };
+    return { output: expectedOutput || 0, txHash: receipt.transactionHash };
   }
 
   /**
