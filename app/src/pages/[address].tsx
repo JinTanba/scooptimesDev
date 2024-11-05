@@ -28,7 +28,7 @@ import { UniswapV2Service } from "@/lib/UniswapRouter"
 
 const testPrivateKey = "68bf6ec02461aecaa2d401ff255a39dc1f97a23f4755837b0a06391513101846";
 const provider = new ethers.providers.JsonRpcProvider("https://base-sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
-const testWallet = new ethers.Wallet(testPrivateKey, provider);
+// const testWallet = new ethers.Wallet(testPrivateKey, provider);
 const factoryAddress = "0xa24e1a98642a63961FBBb662B7CfC41cbd313FC9";
 
 const ibmPlexSerif = IBM_Plex_Serif({
@@ -95,7 +95,10 @@ function CommentCard({ comment, onVote, article }: { comment: Comment, onVote: (
   )
 }
 
-export default function Component() {
+export default function Component({ wallet }: { wallet: ethers.Signer | null }) {
+  const testWallet = wallet
+  
+  // console.log("testWallet", await testWallet.getAddress())
   const [activePosition, setActivePosition] = useState<'positive' | 'negative'>('positive')
   const router = useRouter()
   const { address } = router.query
@@ -128,14 +131,14 @@ export default function Component() {
       const provider = new ethers.providers.JsonRpcProvider("https://base-sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65")
       const factoryContract = new ethers.Contract(factoryAddress, factoryArtifact.abi, provider)
       const saleContract = new ethers.Contract(address as string, saleArtifact.abi, provider)
-      setEthBalance(ethers.utils.formatEther(await provider.getBalance(testWallet.address)))
+      setEthBalance(ethers.utils.formatEther(await provider.getBalance(await testWallet.getAddress())))
       const [name, symbol, metadata, totalRaised, launched, balance, positiveToken, negativeToken] = await Promise.all([
         saleContract.name(),
         saleContract.symbol(),
         factoryContract.getSaleMetadata(address as string),
         saleContract.totalRaised(),
         saleContract.launched(),
-        saleContract.tokenBalances(testWallet.address),
+        saleContract.tokenBalances(await testWallet.getAddress()),
         saleContract.positiveToken(),
         saleContract.negativeToken()
       ])
@@ -147,8 +150,8 @@ export default function Component() {
         const erc20Positive = new ethers.Contract(positiveToken, ["function balanceOf(address) view returns (uint256)"], provider)
         const erc20Negative = new ethers.Contract(negativeToken, ["function balanceOf(address) view returns (uint256)"], provider)
         let [_positiveTokenBalance, _negativeTokenBalance] = await Promise.all([
-          erc20Positive.balanceOf(testWallet.address),
-          erc20Negative.balanceOf(testWallet.address)
+          erc20Positive.balanceOf(await testWallet.getAddress()),
+          erc20Negative.balanceOf(await testWallet.getAddress())
         ])
         positiveTokenBalance = ethers.utils.formatEther(_positiveTokenBalance)
         negativeTokenBalance = ethers.utils.formatEther(_negativeTokenBalance)
@@ -188,7 +191,7 @@ export default function Component() {
 
     setIsLoading(true)
     try {
-      const txHash = activeTab === 'buy' ? await buyToken(article.address, amount.toString(), activePosition) : await sellToken(article.address, amount.toString())
+      const txHash = activeTab === 'buy' ? await buyToken(article.address, amount.toString(), activePosition, testWallet) : await sellToken(article.address, amount.toString(), testWallet)
       
       await fetchData();
       toast({
@@ -432,10 +435,10 @@ export default function Component() {
   )
 }
 
-async function buyToken(saleAddress: string, amount: string, position: 'positive' | 'negative') {
+async function buyToken(saleAddress: string, amount: string, position: 'positive' | 'negative', wallet: ethers.Signer) {
   const factoryContract = new ethers.Contract(factoryAddress, 
-  factoryArtifact.abi, provider)
-  const tx = await factoryContract.connect(testWallet).buyToken(saleAddress, position === 'positive' ? 0 : 1, "", {
+  factoryArtifact.abi, wallet)
+  const tx = await factoryContract.buyToken(saleAddress, position === 'positive' ? 0 : 1, "", {
     value: ethers.utils.parseEther(amount)
   })
   const receipt = await tx.wait()
@@ -443,49 +446,49 @@ async function buyToken(saleAddress: string, amount: string, position: 'positive
   return receipt.transactionHash;
 }
 
-async function sellToken(saleAddress: string, amount: string) {
+async function sellToken(saleAddress: string, amount: string, wallet: ethers.Signer) {
   const factoryContract = new ethers.Contract(factoryAddress, 
-  factoryArtifact.abi, provider)
-  const tx = await factoryContract.connect(testWallet).sellToken(saleAddress, ethers.utils.parseEther(amount), 0)
+  factoryArtifact.abi, wallet)
+  const tx = await factoryContract.sellToken(saleAddress, ethers.utils.parseEther(amount), 0)
   const receipt = await tx.wait()
   console.log("receipt", receipt)
   return receipt.transactionHash;
 }
 
-async function sellInUniswap(tokenAddress: string, amount: BigNumber) {
+async function sellInUniswap(tokenAddress: string, amount: BigNumber, wallet: ethers.Signer) {
   console.log("!!!!!22!  buyInUniswap", tokenAddress, amount)
-  const oldBalance = await (new ethers.Contract(tokenAddress, ["function balanceOf(address) view returns (uint256)"], provider)).balanceOf(testWallet.address)
+  const oldBalance = await (new ethers.Contract(tokenAddress, ["function balanceOf(address) view returns (uint256)"], provider)).balanceOf(await wallet.getAddress())
   console.log("oldBalance", ethers.utils.formatEther(oldBalance.toString()))
   const uniswap = new UniswapV2Service({
     provider,
-    signer: testWallet
+    signer: wallet
   })
   const { output, txHash } = await uniswap.swapTokensForETH(tokenAddress, amount, 0.5)
-  const newBalance = await (new ethers.Contract(tokenAddress, ["function balanceOf(address) view returns (uint256)"], provider)).balanceOf(testWallet.address)
+  const newBalance = await (new ethers.Contract(tokenAddress, ["function balanceOf(address) view returns (uint256)"], provider)).balanceOf(await wallet.getAddress())
   console.log("newBalance", ethers.utils.formatEther(newBalance.toString()))
   console.log("diff", ethers.utils.formatEther(newBalance.sub(oldBalance).toString()))
   console.log("output", output)
   return txHash;
 }
 
-async function buyInUniswap(tokenAddress: string, amount: BigNumber) {
-  const oldBalance = await (new ethers.Contract(tokenAddress, ["function balanceOf(address) view returns (uint256)"], provider)).balanceOf(testWallet.address)
+async function buyInUniswap(tokenAddress: string, amount: BigNumber, wallet: ethers.Signer) {
+  const oldBalance = await (new ethers.Contract(tokenAddress, ["function balanceOf(address) view returns (uint256)"], provider)).balanceOf(await wallet.getAddress())
   console.log("oldBalance", ethers.utils.formatEther(oldBalance.toString()))
   const uniswap = new UniswapV2Service({
     provider,
-    signer: testWallet
+    signer: wallet
   })
   const { output, txHash } = await uniswap.swapETHForTokens(tokenAddress, amount, 0.5)
   console.log("output", output)
-  const newBalance = await (new ethers.Contract(tokenAddress, ["function balanceOf(address) view returns (uint256)"], provider)).balanceOf(testWallet.address)
+  const newBalance = await (new ethers.Contract(tokenAddress, ["function balanceOf(address) view returns (uint256)"], provider)).balanceOf(await wallet.getAddress())
   console.log("newBalance", ethers.utils.formatEther(newBalance.toString()))
   console.log("diff", ethers.utils.formatEther(newBalance.sub(oldBalance).toString()))
   return txHash;
 }
 
-async function claimTokens(saleAddress: string) {
-  const factory = new ethers.Contract(factoryAddress, factoryArtifact.abi, provider)
-  const tx = await factory.connect(testWallet).claim(saleAddress)
+async function claimTokens(saleAddress: string, wallet: ethers.Signer) {
+  const factory = new ethers.Contract(factoryAddress, factoryArtifact.abi, wallet)
+  const tx = await factory.claim(saleAddress)
   const receipt = await tx.wait()
   console.log("receipt", receipt)
   return receipt.transactionHash;

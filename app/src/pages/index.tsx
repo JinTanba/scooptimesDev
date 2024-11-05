@@ -430,7 +430,7 @@ const Form = () => {
   return (
     <>
       <div>
-      <WalletConnector onWalletChange={setWallet} />
+      {/* <WalletConnector onWalletChange={setWallet} /> */}
         <TokenDetailsSection 
           title={title} 
           symbol={symbol} 
@@ -577,11 +577,10 @@ interface SaleMetadata {
   description: string
 }
 
-export default function Component() {
+export default function Component({ wallet }: { wallet: ethers.Signer | null }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [news, dispatch] = useReducer(newsReducer, [])
-  const [wallet, setWallet] = useState<ethers.Signer | null>(null);
 
   useEffect(()=>{
     console.log("-------- useEffect ------", news);
@@ -608,7 +607,7 @@ export default function Component() {
 
   return (
     <div className="min-h-screen w-full bg-white flex justify-center pt-7 relative">
-      <WalletConnector onWalletChange={setWallet} />
+      {/* <WalletConnector onWalletChange={setWallet} /> */}
       <div className="w-full max-w-[1440px] px-4">
         {/* Header */}
         <header className="w-full">
