@@ -1,18 +1,15 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { LazyMotion, domAnimation } from "framer-motion";
-import  useMetaMaskWallet  from "@/lib/walletConnector"; // フックをインポート
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import useMetaMaskWallet from "@/lib/walletConnector";
+import { Menu, Loader2 } from "lucide-react";
 import { ethers } from "ethers";
+import { useEffect, useState } from "react";
 
-// WalletProps の型定義を追加
 interface WalletProps {
   wallet: ethers.Signer;
 }
 
-// AppProps の型を拡張
 type AppPropsWithWallet = AppProps & {
   Component: React.ComponentType<WalletProps>;
 };
@@ -24,55 +21,62 @@ export default function App({ Component, pageProps }: AppPropsWithWallet) {
     isConnecting,
     error,
     connectWallet,
-    disconnectWallet
-  } = useMetaMaskWallet(true); // 自動接続を有効化
+    disconnectWallet,
+    switchAccount
+  } = useMetaMaskWallet(true);
+
+  const [asigner, setSigner] = useState<ethers.Signer>();
+
+  useEffect(() => {
+    if (signer) setSigner(signer)
+  },[signer])
 
   return (
-    <div className="bg-white min-h-screen max-w-screen overflow-hidden">
-      <div className="flex justify-end p-4">
-        {error && (
-          <Alert variant="destructive" className="mb-4 max-w-md">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
-        {account ? (
-          <div className="space-y-4 max-w-md">
-            <Alert>
-              <AlertTitle>Connected to MetaMask</AlertTitle>
-              <AlertDescription>
-                Account: {account.slice(0, 6)}...{account.slice(-4)}
-              </AlertDescription>
-            </Alert>
-            <Button 
-              onClick={disconnectWallet}
-              variant="destructive"
-              className="w-full"
-            >
-              Disconnect
-            </Button>
+    <div className="bg-white min-h-screen max-w-screen overflow-hidden text-black">
+      <div className="fixed top-0 right-0 p-4 z-50">        
+        {isConnecting ? (
+          <div className="flex items-center space-x-2 text-sm bg-white rounded-full shadow-md px-3 py-2">
+            <Loader2 className="w-4 h-4 animate-spin text-yellow-400" />
+            <span className="text-gray-600">Connecting...</span>
+          </div>
+        ) : account ? (
+          <div className="relative group">
+            <button className="flex items-center space-x-2 text-sm hover:opacity-80 transition-opacity bg-white rounded-full shadow-md px-3 py-2">
+              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-gray-600">
+                {`${account.slice(0, 6)}...${account.slice(-4)}`}
+              </span>
+              <Menu className="w-4 h-4 text-gray-600" />
+            </button>
+            
+            <div className="hidden group-hover:block absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1">
+              <button
+                onClick={switchAccount}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Switch Account
+              </button>
+              <button
+                onClick={disconnectWallet}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Disconnect
+              </button>
+            </div>
           </div>
         ) : (
-          <Button 
-            onClick={connectWallet} 
-            disabled={isConnecting}
-            className="w-full max-w-md"
+          <button
+            onClick={connectWallet}
+            className="flex items-center space-x-2 text-sm hover:opacity-80 transition-opacity bg-white rounded-full shadow-md px-3 py-2"
           >
-            {isConnecting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Connecting...
-              </>
-            ) : (
-              'Connect MetaMask'
-            )}
-          </Button>
+            <div className="w-2 h-2 rounded-full bg-red-500" />
+            <span className="text-gray-600">Connect</span>
+          </button>
         )}
       </div>
 
       <LazyMotion features={domAnimation}>
-        {signer && <Component {...pageProps} wallet={signer} />}
+        {signer && <Component {...pageProps} wallet={asigner} />}
       </LazyMotion>
     </div>
   );

@@ -114,7 +114,7 @@ const ThemeSwitchableChart: React.FC = () => {
     };
 
     window.addEventListener('resize', handleResize);
-    handleResize(); // 初期サイズを設定
+    handleResize();
 
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -133,22 +133,7 @@ const ThemeSwitchableChart: React.FC = () => {
 
   return (
     <>
-      <div className="w-full p-4">
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="text-lg font-semibold">
-            Trading Chart ({isDarkMode ? 'Dark' : 'Light'} Mode)
-          </h2>
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`px-4 py-2 rounded-md ${
-              isDarkMode 
-                ? 'bg-gray-700 text-white hover:bg-gray-600' 
-                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-            }`}
-          >
-            Toggle Theme
-          </button>
-        </div>
+      <div className="w-full h-[500px] p-4">
         <div 
           className="w-full h-[300px]"
           ref={chartContainerRef}

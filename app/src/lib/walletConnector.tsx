@@ -26,7 +26,7 @@ const baseSepolia = {
   blockExplorerUrls: ["https://sepolia.etherscan.io/"]
 };
 
-function useMetaMaskWallet(autoConnect = false): MetaMaskWalletHook {
+function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
   const [account, setAccount] = useState("");
   const [chainId, setChainId] = useState("");
   const [signer, setSigner] = useState<ethers.Signer | null>(null);

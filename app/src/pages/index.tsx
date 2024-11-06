@@ -175,7 +175,7 @@ function NewsItem({ news, isFirst }: { news: News, isFirst?: boolean }) {
           <span className="text-black text-[8px]">{creator}</span>
         </div>
         <p className={`text-[#424242] mb-auto ${ibmPlexSerif.className}`} style={{ fontSize: '8px' }}>
-          {description}
+          {description.slice(0, 100)}
         </p>
         <div className={`flex gap-4 ${ibmPlexSans.className}`} style={{ fontSize: '10px' }}>
           <div className="flex items-center gap-1">
@@ -246,11 +246,17 @@ const TokenDetailsSection = ({ title, symbol, bio, setTitle, setSymbol, setBio, 
     <div className={`${ibmPlexSerif.className}`}>
       <h3 className="text-2xl font-semibold mb-4 border-b-2 border-black pb-2">Token Details</h3>
       <div className="mb-4">
-        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Title(TokenName)</label>
         <Input value={title} onChange={(e) => setTitle(e.target.value)} id="title" className="border-2 border-gray-300 rounded-none" />
       </div>
+
       <div className="mb-4">
-        <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+        <label htmlFor="symbol" className="block text-sm font-medium text-gray-700 mb-1">Symbol(ticker symbol)</label>
+        <Input value={symbol} onChange={(e) => setSymbol(e.target.value)} id="symbol" className="border-2 border-gray-300 rounded-none" />
+      </div>
+      
+      <div className="mb-4">
+        <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">Body</label>
         <Textarea value={bio} onChange={(e) => setBio(e.target.value)} id="bio" className="border-2 border-gray-300 rounded-none" rows={4} />
       </div>
       <div className="mt-6">
@@ -374,57 +380,49 @@ const Form = ({ wallet }: { wallet: ethers.Signer | null }) => {
       setIsLoading(false)
     }
   }
-
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    console.log("File", file);
-
-    setUploadedImage(URL.createObjectURL(file))
-
     try {
-      // FormDataの作成
-      const formData = new FormData();
-      formData.append('image', file);
-      console.log("Start Uploading...");
-      // アップロード中の表示
-      setIsLoading(true);
+      setIsLoading(true)
+      const file = event.target.files?.[0]
+      if (!file) return
 
-
-      // APIエンドポイントへのリクエスト
-      const response = await fetch('/api/uploadIPFS', {
-        method: 'POST',
-        body: formData,
-      });
-
-      console.log("Uploading finished");
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
+      // ファイルサイズチェック (4MB)
+      if (file.size > 4 * 1024 * 1024) {
+        alert('File size should be less than 4MB')
+        return
       }
 
-      const data = await response.json();
-      
-      console.log("data", data);
-      setUploadedImage(data)
-      
-      toast({
-        title: "Upload Successful",
-        description: "Image has been uploaded to IPFS",
-      });
+      // FileをBase64に変換
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.readAsDataURL(file)
+      })
 
+      const response = await fetch('/api/uploadIPFS', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          privyId: 'user123', // 必要に応じてユーザーIDを渡す
+          icon: base64,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Upload failed')
+      }
+
+      setUploadedImage(data.iconUrl)
     } catch (error) {
-      console.error('Upload error:', error);
-      toast({
-        title: "Upload Failed",
-        description: "Failed to upload image. Please try again.",
-        variant: "destructive",
-      });
+      console.error('Upload error:', error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
     <>
@@ -450,47 +448,53 @@ const Form = ({ wallet }: { wallet: ethers.Signer | null }) => {
         />
       </div>
       <div className="space-y-6">
-        <div className={`${ibmPlexSerif.className}`}>
-          <h3 className="text-2xl font-semibold mb-4 border-b-2 border-black pb-2">Token Icon</h3>
-          <div className="mb-4">
-            <label htmlFor="icon" className="block text-sm font-medium text-gray-700 mb-1">Upload Icon</label>
-            <div className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-none">
-              {uploadedImage ? (
-                <div className="w-[260px] h-[260px] rounded-full overflow-hidden mb-4">
-                  <Image
-                    src={uploadedImage}
-                    alt="Uploaded icon"
-                    width={260}
-                    height={260}
-                    className="object-cover w-full h-full"
-                  />
-                </div>
-              ) : (
-                <div className="w-[260px] h-[260px] rounded-full bg-gray-200 flex items-center justify-center mb-4">
-                  <Upload size={64} className="text-gray-400" />
-                </div>
-              )}
-              <div className="flex text-sm text-gray-600">
-                <label
-                  htmlFor="file-upload"
-                  className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500"
-                >
-                  <span>{uploadedImage ? 'Change image' : 'Upload a file'}</span>
-                  <input 
-                    id="file-upload" 
-                    name="file-upload" 
-                    type="file" 
-                    className="sr-only" 
-                    onChange={handleImageUpload}
-                  />
-                </label>
-                {!uploadedImage && <p className="pl-1">or drag and drop</p>}
+      <div>
+        <h3 className="text-2xl font-semibold mb-4 border-b-2 border-black pb-2">
+          Token Icon
+        </h3>
+        <div className="mb-4">
+          <label htmlFor="icon" className="block text-sm font-medium text-gray-700 mb-1">
+            Upload Icon
+          </label>
+          <div className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-none">
+            {uploadedImage ? (
+              <div className="w-[260px] h-[260px] rounded-full overflow-hidden mb-4">
+                <Image
+                  src={uploadedImage}
+                  alt="Uploaded icon"
+                  width={260}
+                  height={260}
+                  className="object-cover w-full h-full"
+                />
               </div>
-              <p className="text-xs text-gray-500 mt-2">PNG, JPG, GIF up to 10MB</p>
+            ) : (
+              <div className="w-[260px] h-[260px] rounded-full bg-gray-200 flex items-center justify-center mb-4">
+                <Upload size={64} className="text-gray-400" />
+              </div>
+            )}
+            <div className="flex text-sm text-gray-600">
+              <label
+                htmlFor="file-upload"
+                className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500"
+              >
+                <span>{isLoading ? 'Uploading...' : uploadedImage ? 'Change image' : 'Upload a file'}</span>
+                <input
+                  id="file-upload"
+                  name="file-upload"
+                  type="file"
+                  className="sr-only"
+                  onChange={handleImageUpload}
+                  accept="image/*"
+                  disabled={isLoading}
+                />
+              </label>
+              {!uploadedImage && !isLoading && <p className="pl-1">or drag and drop</p>}
             </div>
+            <p className="text-xs text-gray-500 mt-2">PNG, JPG, GIF up to 10MB</p>
           </div>
         </div>
       </div>
+    </div>
       <div className="mt-8 text-center">
         <Button 
           onClick={handlePublish} 
@@ -650,7 +654,7 @@ export default function Component({ wallet }: { wallet: ethers.Signer | null }) 
                     height={30}
                     className="mx-0"
                   />
-                  <span className="pr-4">create new token]</span>
+                  <span className="pr-4">create new topic]</span>
                 </Button>
               </div>
             </div>
@@ -775,13 +779,14 @@ export default function Component({ wallet }: { wallet: ethers.Signer | null }) 
 }
 
 
+
 function NewsContainer({ dispatch, news }: { dispatch: Dispatch<NewsAction>, news: News[] }) {
   useEffect(() => {
     const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
     const factory = new ethers.Contract(
       factoryAddress,
       [
-        "event SaleCreated(address indexed saleContractAddress, address indexed creator, string name, string symbol, uint256 saleGoal, string logoUrl, string websiteUrl, string twitterUrl, string telegramUrl, string description, string[] relatedLinks, string message)",
+        "event SaleCreated(address indexed saleContractAddress, address indexed creator, string name, string symbol, uint256 saleGoal, string logoUrl, string websiteUrl, string twitterUrl, string telegramUrl, string description, string[] relatedLinks)",
         "event TokensBought(address indexed saleContractAddress, address indexed buyer, uint256 totalRaised, uint256 tokenBalance)",
         "event SaleLaunched(address indexed saleContractAddress, address indexed launcher)",
         "event TokensSold(address indexed saleContractAddress, address indexed seller, uint256 tokenAmount, uint256 ethAmount, uint256 timestamp)",
@@ -882,31 +887,3 @@ function NewsContainer({ dispatch, news }: { dispatch: Dispatch<NewsAction>, new
   );
 }
 
-async function uploadImage(imageFile: File): Promise<string> {
-  const reader = new FileReader();
-  
-  const base64Promise = new Promise<string>((resolve, reject) => {
-    reader.onload = (e) => resolve(e.target?.result as string);
-    reader.onerror = (e) => reject(e);
-  });
-
-  reader.readAsDataURL(imageFile);
-  const base64Data = await base64Promise;
-
-  const response = await fetch('/api/uploadIPFS', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      icon: base64Data,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to upload image');
-  }
-
-  const data = await response.json();
-  return data.iconUrl;
-}
