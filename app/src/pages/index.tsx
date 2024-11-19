@@ -74,7 +74,7 @@ function NewsItem({ news, isFirst }: { news: News, isFirst?: boolean }) {
   const router = useRouter()
   
   const { saleContractAddress, creator, name, symbol, saleGoal, logoUrl, websiteUrl, twitterUrl, telegramUrl, description, blockNumber, transactionHash, totalRaised, launched } = news;
-  
+
   return (
     <AnimatePresence>
       <motion.article 
@@ -271,7 +271,7 @@ export default function Component() {
                 <span className="text-xs text-black">0xij332u2|ej</span>
               </div>
               <p className={`text-[#424242] ${ibmPlexSerif.className}`} style={{ fontSize: '8px' }}>
-                We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power. He tried to do much of this in his first term but was largely stymied. Now, he's intent on hiring people less likely to say no.
+                {/* We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power. He tried to do much of this in his first term but was largely stymied. Now, he's intent on hiring people less likely to say no. */}
               </p>
             </div>
 
@@ -296,7 +296,7 @@ export default function Component() {
                         title of this news
                       </h2>
                       <p className={`text-[#424242] ${ibmPlexSerif.className}`} style={{ fontSize: '8px' }}>
-                        We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power.
+                        {/* We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power. */}
                       </p>
                     </div>
                     <div className="ml-4">
