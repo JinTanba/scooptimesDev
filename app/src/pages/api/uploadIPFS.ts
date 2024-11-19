@@ -49,25 +49,27 @@ export default async function handler(
     // ファイルを読み込む
     const fileBuffer = fs.readFileSync(file.filepath);
 
-    // Supabaseのストレージにアップロード
-    const { data, error } = await supabase
-      .storage
-      .from('images')
-      .upload(fileName, fileBuffer, {
-        contentType: file.mimetype || 'image/jpeg',
-        upsert: true
-      });
+    // SupabaseのストレージにアップロードとパブリックURL取得を並列化
+    const [uploadResult, urlResult] = await Promise.all([
+      supabase
+        .storage
+        .from('images')
+        .upload(fileName, fileBuffer, {
+          contentType: file.mimetype || 'image/jpeg',
+          upsert: true
+        }),
+      supabase
+        .storage
+        .from('images')
+        .getPublicUrl(fileName)
+    ]);
 
-    if (error) {
-      console.log(error)
-      return res.status(500).json({ error: error.message });
+    if (uploadResult.error) {
+      console.log(uploadResult.error)
+      return res.status(500).json({ error: uploadResult.error.message });
     }
 
-    // アップロードされた画像のURLを取得
-    const { data: { publicUrl } } = supabase
-      .storage
-      .from('images')
-      .getPublicUrl(fileName);
+    const publicUrl = urlResult.data.publicUrl;
 
     // 一時ファイルを削除
     fs.unlinkSync(file.filepath);

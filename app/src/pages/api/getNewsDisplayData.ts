@@ -37,9 +37,8 @@ export default async function handler(
     if(!address) return res.status(400).json({ error: "address is required" });
     const factory = new ethers.Contract(factoryAddress, factoryArtifact.abi, provider);
     const sale = new ethers.Contract(address, saleArtifact.abi, provider);
-    const saleMetadata = await factory.getSaleMetadata(address);
-    console.log("🔥saleMetadata", saleMetadata);
     const saleData = await Promise.all([
+        factory.getSaleMetadata(address),
         sale.name(),
         sale.symbol(),
         sale.totalRaised(),
@@ -48,17 +47,17 @@ export default async function handler(
     ]);
     console.log("🔥saleData", saleData);
     const displayData: DisplayData = {
-        name: saleData[0],
-        symbol: saleData[1],
-        logoUrl: saleMetadata.logoUrl,
-        websiteUrl: saleMetadata.websiteUrl,
-        twitterUrl: saleMetadata.twitterUrl,
-        telegramUrl: saleMetadata.telegramUrl,
-        description: saleMetadata.description,
-        relatedLinks: saleMetadata.relatedLinks,
-        totalRaised: saleData[2].toString(),
-        saleGoal: saleData[3].toString(),
-        launched: saleData[4],
+        name: saleData[1],
+        symbol: saleData[2],
+        logoUrl: saleData[0].logoUrl,
+        websiteUrl: saleData[0].websiteUrl,
+        twitterUrl: saleData[0].twitterUrl,
+        telegramUrl: saleData[0].telegramUrl,
+        description: saleData[0].description,
+        relatedLinks: saleData[0].relatedLinks,
+        totalRaised: saleData[3].toString(),
+        saleGoal: saleData[4].toString(),
+        launched: saleData[5],
     }
 
     console.log("🔥displayData", displayData);

@@ -182,22 +182,6 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [comments, setComments] = useState<Comment[]>([]);
 
-  useEffect(() => {
-    if (address) {
-      setLoading(true);
-      fetch(`/api/getNewsDisplayData?address=${address}`)
-        .then(res => res.json())
-        .then(data => {
-          setMetadata(data);
-          setLoading(false);
-        })
-        .catch(error => {
-          console.error("🔥error", error);
-          setLoading(false);
-        });
-    }
-  }, [address]);
-
   const fetchComments = async () => {
     const { data, error } = await supabase
       .from('comment')
@@ -215,9 +199,28 @@ export default function Page() {
 
   useEffect(() => {
     if (address) {
+      setLoading(true);
+      fetch(`/api/getNewsDisplayData?address=${address}`)
+        .then(res => res.json())
+        .then(data => {
+          setMetadata(data);
+          setLoading(false);
+        })
+        .catch(error => {
+          console.error("🔥error", error);
+          setLoading(false);
+        });
+    }
+  }, [address]);
+
+
+
+  useEffect(() => {
+    if (address) {
       fetchComments()
     }
   }, [address])
+
 
   const handleCommentSent = () => {
     fetchComments()

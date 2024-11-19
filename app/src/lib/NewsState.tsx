@@ -54,21 +54,21 @@ export const useNewsStore = create<NewsState>((set) => ({
       provider
     );
     
-    factory.on("TokensBought", (
-        saleContractAddress: string,
-        buyer: string,
-        totalRaised: ethers.BigNumber,
-        tokenBalance: ethers.BigNumber,
-      ) => {
-        console.log("detect tokenBounght", saleContractAddress, buyer, totalRaised.toString())
-        set((state) => ({
-          news: state.news.map(n =>
-            n.saleContractAddress.toLowerCase() === saleContractAddress.toLowerCase()
-              ? { ...n, totalRaised: ethers.utils.formatEther(totalRaised) }
-              : n
-          )
-        }));
-      });
+    // factory.on("TokensBought", (
+    //     saleContractAddress: string,
+    //     buyer: string,
+    //     totalRaised: ethers.BigNumber,
+    //     tokenBalance: ethers.BigNumber,
+    //   ) => {
+    //     console.log("detect tokenBounght", saleContractAddress, buyer, totalRaised.toString())
+    //     set((state) => ({
+    //       news: state.news.map(n =>
+    //         n.saleContractAddress.toLowerCase() === saleContractAddress.toLowerCase()
+    //           ? { ...n, totalRaised: ethers.utils.formatEther(totalRaised) }
+    //           : n
+    //       )
+    //     }));
+    //   });
 
   }
 }));
