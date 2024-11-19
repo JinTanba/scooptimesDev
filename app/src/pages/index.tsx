@@ -115,11 +115,15 @@ function NewsItem({ news, isFirst }: { news: News, isFirst?: boolean }) {
 function NewsContainer() {
   //zastandでニュース配列をチェックしよう！！
   // ニュースの表示
-  const news = useNewsStore(state => state.news);
+  const [news, setNews] = useState<News[]>([]);
+  const _news = useNewsStore(state => state.news);
 
   useEffect(() => {
     console.log("Find news", news)
-  },[news])
+    if(_news.length > 0) {
+      setNews(_news)
+    }
+  },[_news])
 
   if (!news || news.length === 0) {
     return (

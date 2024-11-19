@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ethers, BigNumber } from 'ethers'
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -102,8 +102,12 @@ export default function TokenTrade() {
 
   const ethThreshold = ethers.utils.parseEther("1.5")
 
-  const fetchData = async () => {
-    if (address) {
+
+  // メインのデータフェッチ関数
+  const fetchData = useCallback(async () => {
+    if (!address) return;
+
+    try {
       const factoryContract = new ethers.Contract(factoryAddress, factoryArtifact.abi, provider)
       const saleContract = new ethers.Contract(address, saleArtifact.abi, provider)
       
@@ -127,8 +131,8 @@ export default function TokenTrade() {
 
       const totalRaisedBN = totalRaised ? ethers.BigNumber.from(totalRaised) : ethers.BigNumber.from(0)
       const percentage = totalRaisedBN.mul(100).div(ethThreshold).toNumber()
+      
       setProgressPercentage(percentage)
-
       setArticle({
         address,
         name,
@@ -142,60 +146,82 @@ export default function TokenTrade() {
         positiveTokenBalance: "0",
         negativeTokenBalance: "0"
       })
+    } catch (error) {
+      console.error("Error fetching article data:", error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch article data",
+        variant: "destructive",
+      })
     }
-  }
+  }, [address, toast])
 
-  useEffect(() => {
-    fetchData()
-  }, [router.query.address])
+  // ウォレット関連データのフェッチ関数
+  const fetchWalletData = useCallback(async () => {
+    if (!address || !wallet || !article) return;
 
-  useEffect(() => {
-    const fetchWalletData = async () => {
-      if (address && wallet && article) {
-        const saleContract = new ethers.Contract(address, saleArtifact.abi, provider)
-        const walletAddress = await wallet.getAddress()
+    try {
+      const saleContract = new ethers.Contract(address, saleArtifact.abi, provider)
+      const walletAddress = await wallet.getAddress()
 
-        const [balance, walletEthBalance] = await Promise.all([
-          saleContract.tokenBalances(walletAddress),
-          provider.getBalance(walletAddress)
+      const [balance, walletEthBalance] = await Promise.all([
+        saleContract.tokenBalances(walletAddress),
+        provider.getBalance(walletAddress)
+      ])
+
+      let positiveTokenBalance = "0"
+      let negativeTokenBalance = "0"
+
+      if (article.positiveToken !== ethers.constants.AddressZero) {
+        const erc20Positive = new ethers.Contract(
+          article.positiveToken,
+          ["function balanceOf(address) view returns (uint256)"],
+          provider
+        )
+        const erc20Negative = new ethers.Contract(
+          article.negativeToken,
+          ["function balanceOf(address) view returns (uint256)"],
+          provider
+        )
+
+        const [_positiveBalance, _negativeBalance] = await Promise.all([
+          erc20Positive.balanceOf(walletAddress),
+          erc20Negative.balanceOf(walletAddress)
         ])
 
-        let positiveTokenBalance = "0"
-        let negativeTokenBalance = "0"
-
-        if (article.positiveToken !== ethers.constants.AddressZero) {
-          const erc20Positive = new ethers.Contract(
-            article.positiveToken,
-            ["function balanceOf(address) view returns (uint256)"],
-            provider
-          )
-          const erc20Negative = new ethers.Contract(
-            article.negativeToken,
-            ["function balanceOf(address) view returns (uint256)"],
-            provider
-          )
-
-          const [_positiveBalance, _negativeBalance] = await Promise.all([
-            erc20Positive.balanceOf(walletAddress),
-            erc20Negative.balanceOf(walletAddress)
-          ])
-
-          positiveTokenBalance = ethers.utils.formatEther(_positiveBalance)
-          negativeTokenBalance = ethers.utils.formatEther(_negativeBalance)
-        }
-
-        setEthBalance(ethers.utils.formatEther(walletEthBalance))
-        setArticle(prev => prev ? {
-          ...prev,
-          balance: balance.toString(),
-          positiveTokenBalance,
-          negativeTokenBalance
-        } : null)
+        positiveTokenBalance = ethers.utils.formatEther(_positiveBalance)
+        negativeTokenBalance = ethers.utils.formatEther(_negativeBalance)
       }
-    }
 
-    fetchWalletData()
+      setEthBalance(ethers.utils.formatEther(walletEthBalance))
+      setArticle(prev => prev ? {
+        ...prev,
+        balance: balance.toString(),
+        positiveTokenBalance,
+        negativeTokenBalance
+      } : null)
+    } catch (error) {
+      console.error("Error fetching wallet data:", error)
+    }
   }, [address, wallet, article])
+
+  // アドレスが変更されたときのメインデータフェッチ
+  useEffect(() => {
+    console.log("👉useEffect 1", address)
+    if (address) {
+      fetchData()
+    }
+  }, [address, fetchData])
+
+  // ウォレットデータの更新
+  useEffect(() => {
+    console.log("👉useEffect 2", wallet, article)
+    if (wallet && article) {
+      fetchWalletData()
+    }
+  }, [wallet, article?.address, fetchWalletData])
+
+
 
   const handleBuySell = async () => {
     if (!article?.address || !amount || !wallet) return
