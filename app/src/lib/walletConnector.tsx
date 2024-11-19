@@ -1,13 +1,18 @@
-// @ts-nocheck
-// lib/walletConnector.ts
-import { useState, useEffect, useCallback } from 'react';
+// stores/signerStore.ts
+import { create } from 'zustand';
 import { ethers } from 'ethers';
+import { useState, useEffect, useCallback } from 'react';
+interface SignerState {
+  signer: ethers.Signer | null;
+  setSigner: (signer: ethers.Signer | null) => void;
+}
+
+export const useSignerStore = create<SignerState>((set) => ({
+  signer: null,
+  setSigner: (signer) => set({ signer }),
+}));
 
 interface MetaMaskWalletHook {
-  account: string;
-  chainId: string;
-  signer: ethers.Signer | null;
-  isConnecting: boolean;
   error: string;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => Promise<void>;
@@ -27,45 +32,39 @@ const baseSepolia = {
 };
 
 function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
-  const [account, setAccount] = useState("");
-  const [chainId, setChainId] = useState("");
-  const [signer, setSigner] = useState<ethers.Signer | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState("");
+  const setSigner = useSignerStore(state => state.setSigner);
 
   const connectWallet = useCallback(async () => {
     try {
-      setIsConnecting(true);
       setError("");
 
-      if (!window.ethereum) {
+      if (!(window as any).ethereum) {
         throw new Error("Please install MetaMask to use this feature");
       }
 
-      // wallet_requestPermissionsを使用してアカウント選択モーダルを表示
-      await window.ethereum.request({
+      await (window as any).ethereum.request({
         method: 'wallet_requestPermissions',
         params: [{ eth_accounts: {} }]
       });
 
-      // 選択されたアカウントを取得
-      const accounts = await window.ethereum.request({
+      const accounts = await (window as any).ethereum.request({
         method: "eth_requestAccounts"
       });
 
-      const chainId = await window.ethereum.request({
+      const chainId = await (window as any).ethereum.request({
         method: "eth_chainId"
       });
 
       if (chainId !== "0xaa36a7") {
         try {
-          await window.ethereum.request({
+          await (window as any).ethereum.request({
             method: "wallet_switchEthereumChain",
             params: [{ chainId: "0xaa36a7" }]
           });
         } catch (switchError: any) {
           if (switchError.code === 4902) {
-            await window.ethereum.request({
+            await (window as any).ethereum.request({
               method: "wallet_addEthereumChain",
               params: [baseSepolia]
             });
@@ -75,71 +74,56 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
         }
       }
 
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
       const signer = provider.getSigner();
       
-      setAccount(accounts[0]);
-      setChainId(chainId);
-      setSigner(signer);
+      setSigner(signer); // グローバルステートを更新
 
     } catch (error: any) {
       setError(error.message);
-    } finally {
-      setIsConnecting(false);
     }
-  }, []);
+  }, [setSigner]);
 
-  // アカウント切り替え用の関数を追加
   const switchAccount = useCallback(async () => {
     try {
-      setIsConnecting(true);
       setError("");
 
-      if (!window.ethereum) {
+      if (!(window as any).ethereum) {
         throw new Error("Please install MetaMask to use this feature");
       }
 
-      // アカウント選択モーダルを表示
-      await window.ethereum.request({
+      await (window as any).ethereum.request({
         method: 'wallet_requestPermissions',
         params: [{ eth_accounts: {} }]
       });
 
-      // 選択されたアカウントを取得
-      const accounts = await window.ethereum.request({
+      const accounts = await (window as any).ethereum.request({
         method: "eth_accounts"
       });
 
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
       const signer = provider.getSigner();
       
-      setAccount(accounts[0]);
-      setSigner(signer);
+      setSigner(signer); // グローバルステートを更新
 
     } catch (error: any) {
       setError(error.message);
-    } finally {
-      setIsConnecting(false);
     }
-  }, []);
+  }, [setSigner]);
 
   const disconnectWallet = useCallback(async () => {
     try {
-      setAccount("");
-      setChainId("");
-      setSigner(null);
+      setSigner(null); // グローバルステートを更新
     } catch (error: any) {
       setError(error.message);
     }
-  }, []);
+  }, [setSigner]);
 
   useEffect(() => {
-    if (window.ethereum) {
+    if ((window as any).ethereum) {
       const handleAccountsChanged = (accounts: string[]) => {
         if (accounts.length === 0) {
           disconnectWallet();
-        } else {
-          setAccount(accounts[0]);
         }
       };
 
@@ -147,25 +131,21 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
         window.location.reload();
       };
 
-      window.ethereum.on("accountsChanged", handleAccountsChanged);
-      window.ethereum.on("chainChanged", handleChainChanged);
+      (window as any).ethereum.on("accountsChanged", handleAccountsChanged);
+      (window as any).ethereum.on("chainChanged", handleChainChanged);
 
       if (autoConnect) {
         connectWallet();
       }
       
       return () => {
-        window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
-        window.ethereum.removeListener("chainChanged", handleChainChanged);
+        (window as any).ethereum.removeListener("accountsChanged", handleAccountsChanged);
+        (window as any).ethereum.removeListener("chainChanged", handleChainChanged);
       };
     }
   }, [autoConnect, connectWallet, disconnectWallet]);
 
   return {
-    account,
-    chainId,
-    signer,
-    isConnecting,
     error,
     connectWallet,
     disconnectWallet,

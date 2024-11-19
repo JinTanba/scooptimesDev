@@ -1,128 +1,19 @@
-// @ts-nocheck
-"use client"
 import Image from "next/image"
 import Link from "next/link"
-import { Dispatch, useReducer } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Globe, Loader2, Plus, Search, Send, Trash2, Twitter, Upload, X } from "lucide-react"
+import { Loader2, Search } from "lucide-react"
 import { IBM_Plex_Serif, IBM_Plex_Sans } from "next/font/google"
 import { Button } from "@/components/ui/button"
-import { useEffect, useState } from "react"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/router"
 import { ethers } from "ethers"
-import factoryArtifact from "../EtherFunFactory.json";
 import { News } from "@/types";
-import { useToast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui/toast"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Toaster } from "@/components/ui/toaster";
-import WalletConnector from "@/lib/walletConnector";
+import { CreateNewsModal } from "@/components/CreateNews";
+import { useEffect, useState } from "react"
+import { useNewsStore } from "@/lib/NewsState"
+import { useSignerStore } from "@/lib/walletConnector"
+
 // Font settings
-const testPrivateKey = "68bf6ec02461aecaa2d401ff255a39dc1f97a23f4755837b0a06391513101846";
-const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
-const testWallet = new ethers.Wallet(testPrivateKey, provider);
-const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c";
-
-
-
-type NewsAction = 
-  | { type: 'INIT_NEWS'; payload: News[] }
-  | { type: 'ADD_NEWS'; payload: News }
-  | { type: 'UPDATE_NEWS'; payload: { saleContractAddress: string; totalRaised: string } }
-  | { type: 'LAUNCH_NEWS'; payload: { saleContractAddress: string } };
-
-function newsReducer(state: News[], action: NewsAction): News[] {
-  switch (action.type) {
-    case 'INIT_NEWS':
-      return action.payload;
-
-    case 'ADD_NEWS':
-      return [action.payload, ...state];
-
-    case 'UPDATE_NEWS': {
-      const { saleContractAddress, totalRaised } = action.payload;
-      const existingNewsIndex = state.findIndex(
-        news => news.saleContractAddress.toLowerCase() === saleContractAddress.toLowerCase()
-      );
-
-      if (existingNewsIndex === -1) return state;
-
-      const existingNews = state[existingNewsIndex];
-      const updatedNews = {
-        ...existingNews,
-        totalRaised
-      };
-
-      // 古いニュースを削除して新しいニュースを先頭に追加
-      const newState = [...state];
-      newState.splice(existingNewsIndex, 1);
-      return [updatedNews, ...newState];
-    }
-
-    case 'LAUNCH_NEWS': {
-      const { saleContractAddress } = action.payload;
-      return state.map(news => 
-        news.saleContractAddress.toLowerCase() === saleContractAddress.toLowerCase()
-          ? { ...news, launched: true }
-          : news
-      );
-    }
-
-    default:
-      return state;
-  }
-}
-
-async function createSale(
-  name: string, 
-  symbol: string, 
-  logoUrl: string, 
-  websiteUrl: string, 
-  twitterUrl: string, 
-  telegramUrl: string, 
-  description: string, 
-  relatedLinks: string[],
-  wallet: ethers.Signer
-) {
-  console.log("👉createSale", name, symbol, logoUrl, websiteUrl, twitterUrl, telegramUrl, description, relatedLinks);
-  try {
-
-    const factory = new ethers.Contract(
-      factoryAddress, 
-      factoryArtifact.abi, 
-      wallet
-    );
-    console.log(ethers.utils.parseEther('0.007').toString());
-
-    const tx = await factory.createSale(
-      name, 
-      symbol, 
-      logoUrl, 
-      websiteUrl, 
-      twitterUrl, 
-      telegramUrl, 
-      description, 
-      relatedLinks,
-      "",
-      {
-        value: ethers.utils.parseEther('0.007'),
-        // gasLimit: 3000000, // ガスリミットを設定
-      } // オーバーライドオプションを渡す
-    );
-
-    const receipt = await tx.wait();
-    console.log("Sale created successfully", receipt?.transactionHash);
-
-    return receipt.transactionHash;
-  } catch (error) {
-    console.error("Error creating sale:", error);
-    throw error;
-  }
-}
-
 const ibmPlexSerif = IBM_Plex_Serif({
   weight: ['400', '500', '600', '700'],
   subsets: ['latin'],
@@ -135,66 +26,55 @@ const ibmPlexSans = IBM_Plex_Sans({
   display: 'swap',
 })
 
-// NewsItem Component
-interface NewsItemProps {
-  title: string
-  content: string
-  createdBy: string
-  imageUrl: string
-  positive: number
-  negative: number
-  marketCap: string
-  timeAgo: string
-}
+const Content = ({logoUrl, name, blockNumber, creator, description}: {logoUrl: string, name: string, blockNumber: number, creator: string, description: string}) => (
+  <div className="flex gap-4">
+    <div className="relative w-[104px] flex-shrink-0 flex flex-col justify-center items-center">
+      <Avatar className="w-[90px] h-[90px]">
+        <AvatarImage src={logoUrl} alt={name} className="object-cover" />
+        <AvatarFallback>NT</AvatarFallback>
+      </Avatar>
+    </div>
+    <div className="flex-1 flex flex-col">
+      <div className="flex justify-between items-start mb-1">
+        <h2 className={`text-black font-semibold ${ibmPlexSerif.className}`} style={{ fontSize: '15px' }}>
+          {name}
+        </h2>
+        <span className="text-xs text-neutral-500">{blockNumber}</span>
+      </div>
+      <div className={`flex items-center gap-2 mb-2 ${ibmPlexSans.className}`}>
+        <span className="text-[8px] text-black">created by</span>
+        <Avatar className="w-[12px] h-[12px]">
+          <AvatarImage src="/news1.webp" alt={`${creator}'s avatar`} />
+          <AvatarFallback>{creator[0]}</AvatarFallback>
+        </Avatar>
+        <span className="text-black text-[8px]">{creator}</span>
+      </div>
+      <p className={`text-[#424242] mb-auto ${ibmPlexSerif.className}`} style={{ fontSize: '8px' }}>
+        {description.slice(0, 100)}
+      </p>
+      <div className={`flex gap-4 ${ibmPlexSans.className}`} style={{ fontSize: '10px' }}>
+        <div className="flex items-center gap-1">
+          <span className="text-red-500">positive</span>
+          <span className="text-red-500">{"30"}%</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-blue-500">Negative</span>
+          <span className="text-blue-500">{"70"}%</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-green-500">market cap</span>
+          <span className="text-green-500">{"5b"}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 function NewsItem({ news, isFirst }: { news: News, isFirst?: boolean }) {
   const router = useRouter()
   
   const { saleContractAddress, creator, name, symbol, saleGoal, logoUrl, websiteUrl, twitterUrl, telegramUrl, description, blockNumber, transactionHash, totalRaised, launched } = news;
-
-  const Content = () => (
-    <div className="flex gap-4">
-      <div className="relative w-[104px] flex-shrink-0 flex flex-col justify-center items-center">
-        <Avatar className="w-[90px] h-[90px]">
-          <AvatarImage src={logoUrl} alt={name} className="object-cover" />
-          <AvatarFallback>NT</AvatarFallback>
-        </Avatar>
-      </div>
-      <div className="flex-1 flex flex-col">
-        <div className="flex justify-between items-start mb-1">
-          <h2 className={`text-black font-semibold ${ibmPlexSerif.className}`} style={{ fontSize: '15px' }}>
-            {name}
-          </h2>
-          <span className="text-xs text-neutral-500">{blockNumber}</span>
-        </div>
-        <div className={`flex items-center gap-2 mb-2 ${ibmPlexSans.className}`}>
-          <span className="text-[8px] text-black">created by</span>
-          <Avatar className="w-[12px] h-[12px]">
-            <AvatarImage src="/news1.webp" alt={`${creator}'s avatar`} />
-            <AvatarFallback>{creator[0]}</AvatarFallback>
-          </Avatar>
-          <span className="text-black text-[8px]">{creator}</span>
-        </div>
-        <p className={`text-[#424242] mb-auto ${ibmPlexSerif.className}`} style={{ fontSize: '8px' }}>
-          {description.slice(0, 100)}
-        </p>
-        <div className={`flex gap-4 ${ibmPlexSans.className}`} style={{ fontSize: '10px' }}>
-          <div className="flex items-center gap-1">
-            <span className="text-red-500">positive</span>
-            <span className="text-red-500">{"30"}%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-blue-500">Negative</span>
-            <span className="text-blue-500">{"70"}%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-green-500">market cap</span>
-            <span className="text-green-500">{"5b"}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
+  
   return (
     <AnimatePresence>
       <motion.article 
@@ -220,341 +100,15 @@ function NewsItem({ news, isFirst }: { news: News, isFirst?: boolean }) {
             transition={{ duration: 0.5, delay: 0.2 }}
           />
         )}
-        <Content />
+        <Content 
+          logoUrl={logoUrl} 
+          name={name} 
+          creator={creator}
+          description={description}
+          blockNumber={Number(blockNumber)}
+        />
       </motion.article>
     </AnimatePresence>
-  )
-}
-
-// Token Details と Related Links を統合した新しいセクション
-const TokenDetailsSection = ({ title, symbol, bio, setTitle, setSymbol, setBio, setRelatedLinks, relatedLinks }: { title: string, symbol: string, bio: string, setTitle: (title: string) => void, setSymbol: (symbol: string) => void, setBio: (bio: string) => void, setRelatedLinks: (relatedLinks: { id: number, url: string }[]) => void, relatedLinks: { id: number, url: string }[] }) => {
-
-
-  const addRelatedLink = () => {
-    setRelatedLinks([...relatedLinks, { id: Date.now(), url: '' }])
-  }
-
-  const removeRelatedLink = (id: number) => {
-    setRelatedLinks(relatedLinks.filter(link => link.id !== id))
-  }
-
-  const updateRelatedLink = (id: number, url: string) => {
-    setRelatedLinks(relatedLinks.map(link => link.id === id ? { ...link, url } : link))
-  }
-
-  return (
-    <div className={`${ibmPlexSerif.className}`}>
-      <h3 className="text-2xl font-semibold mb-4 border-b-2 border-black pb-2">Token Details</h3>
-      <div className="mb-4">
-        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Title(TokenName)</label>
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} id="title" className="border-2 border-gray-300 rounded-none" />
-      </div>
-
-      <div className="mb-4">
-        <label htmlFor="symbol" className="block text-sm font-medium text-gray-700 mb-1">Symbol(ticker symbol)</label>
-        <Input value={symbol} onChange={(e) => setSymbol(e.target.value)} id="symbol" className="border-2 border-gray-300 rounded-none" />
-      </div>
-      
-      <div className="mb-4">
-        <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">Body</label>
-        <Textarea value={bio} onChange={(e) => setBio(e.target.value)} id="bio" className="border-2 border-gray-300 rounded-none" rows={4} />
-      </div>
-      <div className="mt-6">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Related Links</label>
-        {relatedLinks.map((link, index) => (
-          <div key={link.id} className="flex items-center mb-2">
-            <Input
-              value={link.url}
-              onChange={(e) => updateRelatedLink(link.id, e.target.value)}
-              className="border-2 border-gray-300 rounded-none mr-2"
-              placeholder={`Related Link ${index + 1}`}
-            />
-            {relatedLinks.length > 1 && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => removeRelatedLink(link.id)}
-                className="flex-shrink-0"
-              >
-                <Trash2 size={20} />
-              </Button>
-            )}
-          </div>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={addRelatedLink}
-          className="mt-2"
-        >
-          <Plus size={20} className="mr-2" /> Add Related Link
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-// SocialLinksのみを含む新しいコンポーネント
-const SocialLinks = ({ twitter, telegram, website, setTwitter, setTelegram, setWebsite }: { twitter: string, telegram: string, website: string, setTwitter: (twitter: string) => void, setTelegram: (telegram: string) => void, setWebsite: (website: string) => void }) => {
-  return (
-    <div className={`space-y-6 ${ibmPlexSerif.className}`}>
-      <h3 className="text-2xl font-semibold mb-4 border-b-2 border-black pb-2">Social Media</h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="twitter" className="block text-sm font-medium text-gray-700 mb-1">Twitter</label>
-          <div className="flex items-center border-2 border-gray-300 rounded-none">
-            <Twitter size={20} className="ml-2 text-gray-400" />
-            <Input value={twitter} onChange={(e) => setTwitter(e.target.value)} id="twitter" className="border-0 focus:ring-0" placeholder="@username" />
-          </div>
-        </div>
-        <div>
-          <label htmlFor="telegram" className="block text-sm font-medium text-gray-700 mb-1">Telegram</label>
-          <div className="flex items-center border-2 border-gray-300 rounded-none">
-            <Send size={20} className="ml-2 text-gray-400" />
-            <Input value={telegram} onChange={(e) => setTelegram(e.target.value)} id="telegram" className="border-0 focus:ring-0" placeholder="@username or t.me/link" />
-          </div>
-        </div>
-      </div>
-      <div>
-        <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-        <div className="flex items-center border-2 border-gray-300 rounded-none">
-          <Globe size={20} className="ml-2 text-gray-400" />
-          <Input value={website} onChange={(e) => setWebsite(e.target.value)} id="website" className="border-0 focus:ring-0" placeholder="https://example.com" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-const Form = ({ wallet }: { wallet: ethers.Signer | null }) => {
-  const [title, setTitle] = useState("")
-  const [symbol, setSymbol] = useState("")
-  const [bio, setBio] = useState("")
-  const [relatedLinks, setRelatedLinks] = useState([{ id: 1, url: '' }])
-  const [twitter, setTwitter] = useState("")
-  const [telegram, setTelegram] = useState("")
-  const [website, setWebsite] = useState("")
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [txHash, setTxHash] = useState<string | null>(null);
-  //connect Metamask
-  const { toast } = useToast()
-
-  const handlePublish = async () => {
-    try {
-      if (!uploadedImage) {
-        console.error("No image uploaded")
-        return
-      }
-      
-      setIsLoading(true)
-      const links = relatedLinks.map(link => link.url).filter(url => url.trim() !== '')
-      if(!wallet) return;
-      const result = await createSale(
-        title,
-        symbol,
-        uploadedImage,
-        website,
-        twitter,
-        telegram,
-        bio,
-        links,
-        wallet
-      )
-      
-      setTxHash(result.hash)
-      toast({
-        title: "🔥Transaction Successful",
-        description: `Your token has been created. Transaction hash: ${result.hash}`,
-      })
-    } catch (error) {
-      console.error("Error publishing token:", error)
-      toast({
-        title: "Error",
-        description: "Failed to create token. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      setIsLoading(true)
-      const file = event.target.files?.[0]
-      if (!file) return
-
-      // ファイルサイズチェック (4MB)
-      if (file.size > 4 * 1024 * 1024) {
-        alert('File size should be less than 4MB')
-        return
-      }
-
-      // FileをBase64に変換
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.readAsDataURL(file)
-      })
-
-      const response = await fetch('/api/uploadIPFS', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          privyId: 'user123', // 必要に応じてユーザーIDを渡す
-          icon: base64,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Upload failed')
-      }
-
-      setUploadedImage(data.iconUrl)
-    } catch (error) {
-      console.error('Upload error:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  return (
-    <>
-      <div>
-      {/* <WalletConnector onWalletChange={setWallet} /> */}
-        <TokenDetailsSection 
-          title={title} 
-          symbol={symbol} 
-          bio={bio} 
-          setTitle={setTitle} 
-          setSymbol={setSymbol} 
-          setBio={setBio} 
-          setRelatedLinks={setRelatedLinks} 
-          relatedLinks={relatedLinks ? relatedLinks : []} 
-        />
-        <SocialLinks 
-          twitter={twitter} 
-          telegram={telegram} 
-          website={website} 
-          setTwitter={setTwitter} 
-          setTelegram={setTelegram} 
-          setWebsite={setWebsite} 
-        />
-      </div>
-      <div className="space-y-6">
-      <div>
-        <h3 className="text-2xl font-semibold mb-4 border-b-2 border-black pb-2">
-          Token Icon
-        </h3>
-        <div className="mb-4">
-          <label htmlFor="icon" className="block text-sm font-medium text-gray-700 mb-1">
-            Upload Icon
-          </label>
-          <div className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-none">
-            {uploadedImage ? (
-              <div className="w-[260px] h-[260px] rounded-full overflow-hidden mb-4">
-                <Image
-                  src={uploadedImage}
-                  alt="Uploaded icon"
-                  width={260}
-                  height={260}
-                  className="object-cover w-full h-full"
-                />
-              </div>
-            ) : (
-              <div className="w-[260px] h-[260px] rounded-full bg-gray-200 flex items-center justify-center mb-4">
-                <Upload size={64} className="text-gray-400" />
-              </div>
-            )}
-            <div className="flex text-sm text-gray-600">
-              <label
-                htmlFor="file-upload"
-                className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500"
-              >
-                <span>{isLoading ? 'Uploading...' : uploadedImage ? 'Change image' : 'Upload a file'}</span>
-                <input
-                  id="file-upload"
-                  name="file-upload"
-                  type="file"
-                  className="sr-only"
-                  onChange={handleImageUpload}
-                  accept="image/*"
-                  disabled={isLoading}
-                />
-              </label>
-              {!uploadedImage && !isLoading && <p className="pl-1">or drag and drop</p>}
-            </div>
-            <p className="text-xs text-gray-500 mt-2">PNG, JPG, GIF up to 10MB</p>
-          </div>
-        </div>
-      </div>
-    </div>
-      <div className="mt-8 text-center">
-        <Button 
-          onClick={handlePublish} 
-          className={`px-8 py-3 bg-black text-white hover:bg-gray-800 ${ibmPlexSans.className}`}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Publishing...
-            </>
-          ) : (
-            'Publish Token'
-          )}
-        </Button>
-      </div>
-      {txHash && (
-        <Alert className="mt-4">
-          <AlertTitle>Transaction Successful</AlertTitle>
-          <AlertDescription>
-            Your token has been created. Transaction hash: {txHash}
-          </AlertDescription>
-        </Alert>
-      )}
-    </>
-  )
-}
-
-const ModalContent = ({ closeModal, wallet }: { closeModal: () => void, wallet: ethers.Signer | null }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 text-black"
-      onClick={closeModal}
-    >
-      <motion.div
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 100, opacity: 0 }}
-        className="bg-[#F5F5F5] rounded-[23px] p-8 w-[1007px] max-h-[90vh] overflow-y-auto relative"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={closeModal}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-        >
-          <X size={24} />
-        </button>
-        <div className={`text-center mb-8 ${ibmPlexSerif.className}`}>
-          <h2 className="text-4xl font-bold mb-2">Scoop Times</h2>
-          <p className="text-xl">Token Creation Edition</p>
-        </div>
-        <div className="grid grid-cols-2 gap-8">
-          <Form wallet={wallet} />
-        </div>
-        <Toaster />
-      </motion.div>
-    </motion.div>
   )
 }
 
@@ -580,34 +134,55 @@ interface SaleMetadata {
   description: string
 }
 
-export default function Component({ wallet }: { wallet: ethers.Signer | null }) {
+
+function NewsContainer() {
+  //zastandでニュース配列をチェックしよう！！
+  // ニュースの表示
+  const news = useNewsStore(state => state.news);
+
+  useEffect(() => {
+    console.log("Find news", news)
+  },[news])
+
+  if (!news || news.length === 0) {
+    return (
+      <div className="w-full flex justify-center items-center h-64">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="flex flex-col items-center"
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-gray-500 mb-4" />
+          <p className="text-gray-500 text-sm">Loading news...</p>
+        </motion.div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-2 2xl:grid-cols-3 gap-6 w-full">
+      <AnimatePresence>
+        {news?.map((item, index) => (
+          <NewsItem 
+            key={`${item.saleContractAddress}-${index}`} 
+            news={item} 
+            isFirst={index === 0}
+          />
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+
+export default function Component() {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const wallet = useSignerStore(state => state.signer);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [news, dispatch] = useReducer(newsReducer, [])
-
-  useEffect(()=>{
-    console.log("-------- useEffect ------", news);
-    fetch('/api/getNews')
-      .then(res => res.json())
-      .then(data => {
-        if (!data.data) return;
-        console.log("data", data.data.sales);
-        dispatch({ type: 'INIT_NEWS', payload: data.data.sales })
-      })
-  },[])
   
-
   const openModal = () => setIsModalOpen(true)
   const closeModal = () => setIsModalOpen(false)
-
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const imageUrl = URL.createObjectURL(file)
-      setUploadedImage(imageUrl)
-    }
-    await uploadImage(file)
-  }
 
   return (
     <div className="min-h-screen w-full bg-white flex justify-center pt-7 relative">
@@ -666,9 +241,8 @@ export default function Component({ wallet }: { wallet: ethers.Signer | null }) 
         {/* Modal */}
         <AnimatePresence>
           {isModalOpen && (
-            <ModalContent 
+            <CreateNewsModal 
               closeModal={closeModal}
-              wallet={wallet}
             />
           )}
         </AnimatePresence>
@@ -771,7 +345,7 @@ export default function Component({ wallet }: { wallet: ethers.Signer | null }) 
             </button>
           </div>
 
-          <NewsContainer dispatch={dispatch} news={news} />
+          <NewsContainer/>
         </main>
       </div>
     </div>
@@ -779,111 +353,4 @@ export default function Component({ wallet }: { wallet: ethers.Signer | null }) 
 }
 
 
-
-function NewsContainer({ dispatch, news }: { dispatch: Dispatch<NewsAction>, news: News[] }) {
-  useEffect(() => {
-    const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
-    const factory = new ethers.Contract(
-      factoryAddress,
-      [
-        "event SaleCreated(address indexed saleContractAddress, address indexed creator, string name, string symbol, uint256 saleGoal, string logoUrl, string websiteUrl, string twitterUrl, string telegramUrl, string description, string[] relatedLinks)",
-        "event TokensBought(address indexed saleContractAddress, address indexed buyer, uint256 totalRaised, uint256 tokenBalance)",
-        "event SaleLaunched(address indexed saleContractAddress, address indexed launcher)",
-        "event TokensSold(address indexed saleContractAddress, address indexed seller, uint256 tokenAmount, uint256 ethAmount, uint256 timestamp)",
-
-      ],
-      provider
-    );
-
-    // SaleCreatedイベントの監視
-    const handleSaleCreated = async (
-      saleContractAddress: string,
-      creator: string,
-      name: string,
-      symbol: string,
-      saleGoal: ethers.BigNumber,
-      logoUrl: string,
-      websiteUrl: string,
-      twitterUrl: string,
-      telegramUrl: string,
-      description: string,
-      event: ethers.Event
-    ) => {
-      const newSale: News = {
-        saleContractAddress,
-        creator,
-        name,
-        symbol,
-        saleGoal: ethers.utils.formatEther(saleGoal),
-        logoUrl,
-        websiteUrl,
-        twitterUrl,
-        telegramUrl,
-        description,
-        blockNumber: event.blockNumber.toString(),
-        transactionHash: event.transactionHash,
-        totalRaised: "0",
-        launched: false
-      };
-
-      dispatch({ type: 'ADD_NEWS', payload: newSale });
-    };
-
-    // TokensBoughtイベントの監視
-    const handleTokensBought = (
-      saleContractAddress: string,
-      buyer: string,
-      totalRaised: ethers.BigNumber,
-      tokenBalance: ethers.BigNumber,
-      event: ethers.Event
-    ) => {
-      dispatch({
-        type: 'UPDATE_NEWS',
-        payload: {
-          saleContractAddress,
-          totalRaised: ethers.utils.formatEther(totalRaised),
-        }
-      });
-    };
-
-    // SaleLaunchedイベントの監視
-    const handleSaleLaunched = (
-      saleContractAddress: string,
-      launcher: string,
-      event: ethers.Event
-    ) => {
-      dispatch({
-        type: 'LAUNCH_NEWS',
-        payload: { saleContractAddress }
-      });
-    };
-
-    // イベントリスナーの設定
-    factory.on("SaleCreated", handleSaleCreated);
-    factory.on("TokensBought", handleTokensBought);
-    factory.on("SaleLaunched", handleSaleLaunched);
-
-    // クリーンアップ
-    return () => {
-      factory.removeListener("SaleCreated", handleSaleCreated);
-      factory.removeListener("TokensBought", handleTokensBought);
-      factory.removeListener("SaleLaunched", handleSaleLaunched);
-    };
-  }, [dispatch]);
-
-  // ニュースの表示
-  return (
-    <div className="grid grid-cols-2 2xl:grid-cols-3 gap-6 w-full">
-      <AnimatePresence>
-        {news.map((item, index) => (
-          <NewsItem 
-            key={`${item.saleContractAddress}-${index}`} 
-            news={item} 
-            isFirst={index === 0}
-          />
-        ))}
-      </AnimatePresence>
-    </div>
-  );
-}
 

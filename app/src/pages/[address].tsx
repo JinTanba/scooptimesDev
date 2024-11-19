@@ -1,6 +1,8 @@
+'use client'
+
 import Link from "next/link"
 import Image from "next/image"
-import { Search, Send } from "lucide-react"
+import { Search, Send } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { IBM_Plex_Serif, IBM_Plex_Sans } from "next/font/google"
 import { Input } from "@/components/ui/input"
@@ -8,7 +10,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import TokenTrade from "@/components/TokenTrade"
-import { ethers } from "ethers"
+import { useSignerStore } from "@/lib/walletConnector"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/router"
 
 const ibmPlexSerif = IBM_Plex_Serif({
   weight: ['400', '500', '600', '700'],
@@ -62,7 +66,7 @@ function CommentThread({
   const balanceBadgeColor = type === 'PoS' ? 'bg-red-100 text-red-500' : 'bg-blue-100 text-blue-500'
 
   return (
-    <div className="flex gap-4 ml-[80px] w-[90%] mx-auton mt-10 justify-center ">
+    <div className="flex gap-4 ml-[80px] w-[90%] mx-auto mt-10 justify-center">
       <Avatar className="h-10 w-10">
         <AvatarImage src="https://pbs.twimg.com/media/EmNlJLpU4AEtZo7?format=png&name=900x900" />
         <AvatarFallback>UN</AvatarFallback>
@@ -72,7 +76,7 @@ function CommentThread({
           <span className={`text-sm ${ibmPlexSans.className}`}>{formattedAddress}</span>
           {isTop && (
             <Badge 
-              variant="secondary" 
+            variant="secondary" 
               className={cn("rounded-full px-2 py-0.5 text-white text-xs", badgeColor)}
             >
               {type}
@@ -98,7 +102,49 @@ function CommentThread({
   )
 }
 
-export default function Page({ wallet }: { wallet: ethers.Signer | null }) {
+interface SaleMetadata {
+  creator: string
+  saleGoal: string
+  logoUrl: string
+  websiteUrl: string
+  twitterUrl: string
+  telegramUrl: string
+  description: string
+  name: string
+}
+
+function SkeletonLoader() {
+  return (
+    <div className="animate-pulse">
+      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+    </div>
+  )
+}
+
+export default function Page() {
+  const wallet = useSignerStore(state => state.signer);
+  const router = useRouter();
+  const { address } = router.query;
+  const [metadata, setMetadata] = useState<SaleMetadata | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (address) {
+      setLoading(true);
+      fetch(`/api/getNewsDisplayData?address=${address}`)
+        .then(res => res.json())
+        .then(data => {
+          setMetadata(data);
+          setLoading(false);
+        })
+        .catch(error => {
+          console.error("🔥error", error);
+          setLoading(false);
+        });
+    }
+  }, [address]);
+  
   return (
     <div className="min-h-screen bg-white">
       <header className="w-full">
@@ -152,53 +198,76 @@ export default function Page({ wallet }: { wallet: ethers.Signer | null }) {
         <section className="flex-1 mr-8">
           <article className="flex gap-6 mb-8">
             <div className="flex-shrink-0">
-              <Image
-                src="https://pbs.twimg.com/media/EmNlJLpU4AEtZo7?format=png&name=900x900"
-                alt="Lady Gaga"
-                width={115}
-                height={115}
-                className="rounded-full object-cover"
-              />
+              {loading ? (
+                <div className="w-[115px] h-[115px] rounded-full bg-gray-200 animate-pulse"></div>
+              ) : (
+                <Image
+                  src={metadata?.logoUrl.replace("blob:", "") || ""}
+                  alt="Article image"
+                  width={115}
+                  height={115}
+                  className="rounded-full object-cover"
+                />
+              )}
             </div>
             <div className="flex-1">
-              <h2 className={`text-[41px] font-normal leading-tight mb-4 ${ibmPlexSerif.className}`}>
-                Lady Gaga's Dance-Floor Antidote, and 9 More New Songs
-              </h2>
-              <p className={`text-[13px] font-light ${ibmPlexSans.className}`}>
-                In a new report from Animoca Brands Research, analysts claim that Polymarket will likely have staying power after today's presidential election in the United States — an event that has skyrocketed the decentralized betting platform's popularity into the mainstream.
-                Polymarket, an onchain prediction market that provides quantitative odds for future events, saw its monthly trading volume surge from $40 million to $2.5 billion between April and October, according to the report. Meanwhile, open interest increased from $20 million to $400 million. In October alone, the platform's website drew 35 mIn a new report from Animoca Brands Research, analysts claim that Polymarket will likely have staying power after today's presidential election in the United States — an event that has skyrocketed the decentralized betting platform's popularity into the mai
-              </p>
+              {loading ? (
+                <SkeletonLoader />
+              ) : (
+                <>
+                  <h2 className={`text-[41px] font-normal leading-tight mb-4 ${ibmPlexSerif.className}`}>
+                    {metadata?.name || ""}
+                  </h2>
+                  <p className={`text-[13px] font-light ${ibmPlexSans.className}`}>
+                    {metadata?.description || ""}
+                  </p>
+                </>
+              )}
             </div>
           </article>
 
           <WriteComment />
 
-          <div className="space-y-8 mt-6 ">
-            <CommentThread
-              address="0x8218....1821"
-              content="We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power. He tried to do much of this in his first term but was largely stymied. Now, he's intent on hiring people less likely to say no."
-              balance={100000}
-              type="NeG"
-              isTop={true}
-            />
-            <CommentThread
-              address="0x8218....1821"
-              content="We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power. He tried to do much of this in his first term but was largely stymied. Now, he's intent on hiring people less likely to say no."
-              balance={100000}
-              type="NeG"
-              isTop={true}
-            />            
-            <CommentThread
-              address="0x8218....1821"
-              content="We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power. He tried to do much of this in his first term but was largely stymied. Now, he's intent on hiring people less likely to say no."
-              balance={100000}
-              type="NeG"
-              isTop={true}
-            />
-            {/* More comments can be added here */}
+          <div className="space-y-8 mt-6">
+            {loading ? (
+              Array(3).fill(null).map((_, index) => (
+                <div key={index} className="animate-pulse flex gap-4 ml-[80px] w-[90%] mx-auto mt-10 justify-center">
+                  <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <>
+                <CommentThread
+                  address="0x8218....1821"
+                  content="We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power. He tried to do much of this in his first term but was largely stymied. Now, he's intent on hiring people less likely to say no."
+                  balance={100000}
+                  type="NeG"
+                  isTop={true}
+                />
+                <CommentThread
+                  address="0x8218....1821"
+                  content="We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power. He tried to do much of this in his first term but was largely stymied. Now, he's intent on hiring people less likely to say no."
+                  balance={100000}
+                  type="NeG"
+                  isTop={true}
+                />            
+                <CommentThread
+                  address="0x8218....1821"
+                  content="We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power. He tried to do much of this in his first term but was largely stymied. Now, he's intent on hiring people less likely to say no."
+                  balance={100000}
+                  type="NeG"
+                  isTop={true}
+                />
+              </>
+            )}
           </div>
         </section>
-          <TokenTrade wallet={wallet} />
+        <TokenTrade />
       </main>
     </div>
   )

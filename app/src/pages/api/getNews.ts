@@ -13,7 +13,9 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
+    console.log('getNews//////');
     const latestBlock = await provider.getBlockNumber();
+    console.log(latestBlock);
     const filter = factory.filters.SaleCreated();
     const events = await factory.queryFilter(filter, 0, latestBlock);
 

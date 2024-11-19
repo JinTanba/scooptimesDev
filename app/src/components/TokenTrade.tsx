@@ -13,6 +13,7 @@ import { UniswapV2Service } from "@/lib/UniswapRouter"
 import saleArtifact from "../EtherfunSale.json"
 import factoryArtifact from "../EtherFunFactory.json"
 import { useRouter } from 'next/router'
+import { useSignerStore } from '@/lib/walletConnector'
 
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c"
 const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65")
@@ -82,7 +83,8 @@ async function claimTokens(saleAddress: string, wallet: ethers.Signer) {
   return receipt.transactionHash
 }
 
-export default function TokenTrade({ wallet }: { wallet: ethers.Signer | null }) {
+export default function TokenTrade() {
+  const wallet = useSignerStore(state => state.signer);
   const [article, setArticle] = useState<ArticleDisplay | null>(null)
   const [progressPercentage, setProgressPercentage] = useState(0)
   const [amount, setAmount] = useState(0)
