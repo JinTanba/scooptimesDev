@@ -92,6 +92,7 @@ export default function TokenTrade() {
   const [progressPercentage, setProgressPercentage] = useState(0)
   const [amount, setAmount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
   const [activeTab, setActiveTab] = useState('buy')
   const [activePosition, setActivePosition] = useState<'positive' | 'negative'>('positive')
   const [ethBalance, setEthBalance] = useState('0')
@@ -102,7 +103,7 @@ export default function TokenTrade() {
   const ethThreshold = ethers.utils.parseEther("1.5")
 
   const fetchData = async () => {
-    if (address && wallet) {
+    if (address) {
       const factoryContract = new ethers.Contract(factoryAddress, factoryArtifact.abi, provider)
       const saleContract = new ethers.Contract(address, saleArtifact.abi, provider)
       
@@ -112,38 +113,18 @@ export default function TokenTrade() {
         metadata,
         totalRaised,
         launched,
-        balance,
         positiveToken,
         negativeToken,
-        walletAddress
       ] = await Promise.all([
         saleContract.name(),
         saleContract.symbol(),
         factoryContract.getSaleMetadata(address),
         saleContract.totalRaised(),
         saleContract.launched(),
-        saleContract.tokenBalances(await wallet.getAddress()),
         saleContract.positiveToken(),
         saleContract.negativeToken(),
-        wallet.getAddress()
       ])
 
-      let positiveTokenBalance = "0"
-      let negativeTokenBalance = "0"
-
-      if (positiveToken !== ethers.constants.AddressZero) {
-        const erc20Positive = new ethers.Contract(positiveToken, ["function balanceOf(address) view returns (uint256)"], provider)
-        const erc20Negative = new ethers.Contract(negativeToken, ["function balanceOf(address) view returns (uint256)"], provider)
-        const [_positiveBalance, _negativeBalance] = await Promise.all([
-          erc20Positive.balanceOf(walletAddress),
-          erc20Negative.balanceOf(walletAddress)
-        ])
-        positiveTokenBalance = ethers.utils.formatEther(_positiveBalance)
-        negativeTokenBalance = ethers.utils.formatEther(_negativeBalance)
-      }
-
-      setEthBalance(ethers.utils.formatEther(await provider.getBalance(walletAddress)))
-      
       const totalRaisedBN = totalRaised ? ethers.BigNumber.from(totalRaised) : ethers.BigNumber.from(0)
       const percentage = totalRaisedBN.mul(100).div(ethThreshold).toNumber()
       setProgressPercentage(percentage)
@@ -155,20 +136,66 @@ export default function TokenTrade() {
         metadata,
         totalRaised: totalRaisedBN.toString(),
         launched,
-        balance: balance.toString(),
+        balance: "0",
         positiveToken,
         negativeToken,
-        positiveTokenBalance,
-        negativeTokenBalance
+        positiveTokenBalance: "0",
+        negativeTokenBalance: "0"
       })
     }
   }
 
   useEffect(() => {
-    if (address) {
-      fetchData()
-    }
+    fetchData()
   }, [router.query.address])
+
+  useEffect(() => {
+    const fetchWalletData = async () => {
+      if (address && wallet && article) {
+        const saleContract = new ethers.Contract(address, saleArtifact.abi, provider)
+        const walletAddress = await wallet.getAddress()
+
+        const [balance, walletEthBalance] = await Promise.all([
+          saleContract.tokenBalances(walletAddress),
+          provider.getBalance(walletAddress)
+        ])
+
+        let positiveTokenBalance = "0"
+        let negativeTokenBalance = "0"
+
+        if (article.positiveToken !== ethers.constants.AddressZero) {
+          const erc20Positive = new ethers.Contract(
+            article.positiveToken,
+            ["function balanceOf(address) view returns (uint256)"],
+            provider
+          )
+          const erc20Negative = new ethers.Contract(
+            article.negativeToken,
+            ["function balanceOf(address) view returns (uint256)"],
+            provider
+          )
+
+          const [_positiveBalance, _negativeBalance] = await Promise.all([
+            erc20Positive.balanceOf(walletAddress),
+            erc20Negative.balanceOf(walletAddress)
+          ])
+
+          positiveTokenBalance = ethers.utils.formatEther(_positiveBalance)
+          negativeTokenBalance = ethers.utils.formatEther(_negativeBalance)
+        }
+
+        setEthBalance(ethers.utils.formatEther(walletEthBalance))
+        setArticle(prev => prev ? {
+          ...prev,
+          balance: balance.toString(),
+          positiveTokenBalance,
+          negativeTokenBalance
+        } : null)
+      }
+    }
+
+    fetchWalletData()
+  }, [address, wallet, article])
 
   const handleBuySell = async () => {
     if (!article?.address || !amount || !wallet) return
@@ -188,10 +215,8 @@ export default function TokenTrade() {
       }
       
       await fetchData()
-      toast({
-        title: `Token ${activeTab === 'buy' ? 'Purchase' : 'Sale'} Successful`,
-        description: `Transaction Hash: ${txHash}`,
-      })
+      setIsSuccess(true)
+      setTimeout(() => setIsSuccess(false), 3000) // Reset success state after 3 seconds
     } catch (error) {
       console.error(`Error ${activeTab === 'buy' ? 'buying' : 'selling'} token:`, error)
       toast({
@@ -235,7 +260,7 @@ export default function TokenTrade() {
           <AdvancedTradingChart />
         </div>
       </div>
-      <div className="space-y-2 relative z-10"> {/* space-y-4 から space-y-2 に変更 */}
+      <div className="space-y-2 relative z-10">
         {article.launched ? (
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="flex items-center justify-between">
@@ -305,7 +330,6 @@ export default function TokenTrade() {
               <TabsTrigger value="buy">Buy</TabsTrigger>
               <TabsTrigger value="sell">Sell</TabsTrigger>
             </TabsList>
-            
             <div className="bg-[#ffffff] p-3 rounded-xl space-y-2">
               <p className="text-[#000000] text-[14px]">
                 bonding curve progress: {progressPercentage}%
@@ -333,16 +357,30 @@ export default function TokenTrade() {
         )}
         <Button 
           onClick={handleBuySell}
-          className={`ml-[14px] items-center w-[90%] h-14 mt-2 mb-[10px] rounded-[10px] bg-[#F3F3F3] hover:bg-[#E5E5E5] text-[#8F8F8F] ${amount > 0 ? "text-white bg-black" : ""}`}
+          className={`
+            ml-[14px] items-center w-[90%] h-14 mt-2 mb-[10px] rounded-[10px] 
+            ${isSuccess 
+              ? "bg-green-500 hover:bg-green-600 text-white" 
+              : amount > 0 
+                ? "text-white bg-black" 
+                : "bg-[#F3F3F3] hover:bg-[#E5E5E5] text-[#8F8F8F]"
+            }
+            transition-all duration-300 ease-in-out
+          `}
           variant="ghost"
           disabled={amount <= 0 || isLoading}
         >
-          {isLoading ? 'Processing...' : article.launched 
+          {isLoading ? 'Processing...' : 
+           isSuccess ? 'Purchase Successful!' :
+           article.launched 
             ? `${activeTab === 'buy' ? 'Buy' : 'Sell'} ${article.symbol}`
-            : `Purchase ${activePosition}`}
+            : `Purchase ${activePosition}`
+          }
+          {isSuccess && (
+            <span className="ml-2 animate-ping">🎉</span>
+          )}
         </Button>
 
-        {/* Claim Button - only show if there's a balance to claim */}
         {article.launched && ethers.BigNumber.from(article.balance).gt(0) && (
           <Button 
             onClick={handleClaim}
@@ -354,7 +392,6 @@ export default function TokenTrade() {
         )}
       </div>
       
-      {/* Balance display section */}
       <div className="absolute bottom-[-40px] left-2 right-2 flex items-center justify-between text-[12px] font-thin text-gray-500">
         <span className="flex-1">ETH Balance: {parseFloat(ethBalance).toFixed(3)} ETH</span>
         {article.launched && (
@@ -367,7 +404,6 @@ export default function TokenTrade() {
           <span className="flex-1">{ethers.utils.formatEther(article.balance)}</span>
         )}
       </div>
-
     </div>
   )
 }
