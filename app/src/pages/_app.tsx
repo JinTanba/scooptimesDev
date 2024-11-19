@@ -75,7 +75,9 @@ export default function App({ Component, pageProps }: AppPropsWithWallet) {
   const initializeEventListeners = useNewsStore(state => state.initializeEventListeners);
   const news = useNewsStore(state => state.news);
    useEffect(() => {
+     console.log("Hi")
      if(news.length > 0) return;
+     console.log("initializeEventListeners")
      initializeEventListeners(factoryAddress);
    }, []);
 

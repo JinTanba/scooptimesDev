@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useEffect } from 'react'
 import { ethers, BigNumber } from 'ethers'
 import Image from "next/image"
@@ -162,7 +164,6 @@ export default function TokenTrade() {
   }
 
   useEffect(() => {
-
     if (address) {
       fetchData()
     }
@@ -227,13 +228,13 @@ export default function TokenTrade() {
   if (!article) return <div>Loading...</div>
 
   return (
-    <div className="bg-white ml-[20px] flex flex-col shadow-[0px_4px_36px_0px_rgba(0,0,0,0.09)] p-4 rounded-[20px] space-y-6 w-[30%] h-[42%] max-w-[550px]  relative">
-      <div className="relative w-full max-h-[500px] aspect-[16/9] border border-[#cdcdcd] rounded-[20px] overflow-hidden" >
+    <div className="bg-white ml-[20px] flex flex-col shadow-[0px_4px_36px_0px_rgba(0,0,0,0.09)] p-4 rounded-[20px] space-y-6 w-[30%] h-[45%] max-w-[550px] relative">
+      <div className="relative w-full max-h-[545px] aspect-[16/9] border border-[#cdcdcd] rounded-[20px] overflow-hidden" >
         <div className="absolute inset-0 w-full h-full">
           <AdvancedTradingChart />
         </div>
       </div>
-      <div className="space-y-2 relative z-10">
+      <div className="space-y-2 relative z-10"> {/* space-y-4 から space-y-2 に変更 */}
         {article.launched ? (
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="flex items-center justify-between">
@@ -331,7 +332,7 @@ export default function TokenTrade() {
         )}
         <Button 
           onClick={handleBuySell}
-          className={`ml-[14px] items-center w-[90%] h-14 mb-[30px] rounded-[10px] bg-[#F3F3F3] hover:bg-[#E5E5E5] text-[#8F8F8F] ${amount > 0 ? "text-white bg-black" : ""}`}
+          className={`ml-[14px] items-center w-[90%] h-14 mt-2 mb-[10px] rounded-[10px] bg-[#F3F3F3] hover:bg-[#E5E5E5] text-[#8F8F8F] ${amount > 0 ? "text-white bg-black" : ""}`}
           variant="ghost"
           disabled={amount <= 0 || isLoading}
         >
@@ -353,18 +354,16 @@ export default function TokenTrade() {
       </div>
       
       {/* Balance display section */}
-      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[12px] font-thin text-gray-500">
+      <div className="absolute bottom-[-40px] left-2 right-2 flex items-center justify-between text-[12px] font-thin text-gray-500">
         <span className="flex-1">ETH Balance: {parseFloat(ethBalance).toFixed(3)} ETH</span>
         {article.launched && (
-            <>
-        <span className="flex-1">{`${article.symbol} (positive)`}: {parseFloat(article.positiveTokenBalance || "0").toFixed(3)}</span>
+          <>
+            <span className="flex-1">{`${article.symbol} (positive)`}: {parseFloat(article.positiveTokenBalance || "0").toFixed(3)}</span>
             <span className="flex-1">{`${article.symbol} (negative)`}: {parseFloat(article.negativeTokenBalance || "0").toFixed(3)}</span>
           </>
         )}
         {!article.launched && (
-            <>
-              <span className="flex-1">{ethers.utils.formatEther(article.balance)}</span>
-            </>
+          <span className="flex-1">{ethers.utils.formatEther(article.balance)}</span>
         )}
       </div>
     </div>

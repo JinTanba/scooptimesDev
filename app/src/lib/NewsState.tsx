@@ -53,48 +53,13 @@ export const useNewsStore = create<NewsState>((set) => ({
       ],
       provider
     );
-
-    factory.on("SaleCreated", async (
-      saleContractAddress: string,
-      creator: string,
-      name: string,
-      symbol: string,
-      saleGoal: ethers.BigNumber,
-      logoUrl: string,
-      websiteUrl: string,
-      twitterUrl: string,
-      telegramUrl: string,
-      description: string,
-      event: ethers.Event
-    ) => {
-      console.log("hello")
-      const newSale: News = {
-        saleContractAddress,
-        creator,
-        name,
-        symbol,
-        saleGoal: ethers.utils.formatEther(saleGoal),
-        logoUrl,
-        websiteUrl,
-        twitterUrl,
-        telegramUrl,
-        description,
-        blockNumber: event.blockNumber?.toString(),
-        transactionHash: event.transactionHash,
-        totalRaised: "0",
-        launched: false
-      };
-      set((state) => ({ news: [newSale, ...state.news] }));
-    });
-
-
     factory.on("TokensBought", (
         saleContractAddress: string,
         buyer: string,
         totalRaised: ethers.BigNumber,
         tokenBalance: ethers.BigNumber,
       ) => {
-        console.log("detect tokenBounght")
+        console.log("detect tokenBounght", saleContractAddress, buyer, totalRaised.toString())
         set((state) => ({
           news: state.news.map(n =>
             n.saleContractAddress.toLowerCase() === saleContractAddress.toLowerCase()
@@ -103,18 +68,6 @@ export const useNewsStore = create<NewsState>((set) => ({
           )
         }));
       });
-  
-      factory.on("SaleLaunched", (
-        saleContractAddress: string,
-        launcher: string,
-      ) => {
-        set((state) => ({
-          news: state.news.map(n =>
-            n.saleContractAddress.toLowerCase() === saleContractAddress.toLowerCase()
-              ? { ...n, launched: true }
-              : n
-          )
-        }));
-      });
+
   }
 }));
