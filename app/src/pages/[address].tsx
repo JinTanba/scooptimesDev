@@ -141,7 +141,7 @@ function CommentThread({ comment, newsAddress, onCommentSent }: { comment: Comme
         {showReplyForm && (
           <div className="mt-4">
             <WriteComment
-              parentId={comment.id}
+              parentId={comment.id || ""}
               newsAddress={newsAddress}
               onCommentSent={() => {
                 setShowReplyForm(false);
