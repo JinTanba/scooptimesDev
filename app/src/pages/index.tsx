@@ -112,29 +112,6 @@ function NewsItem({ news, isFirst }: { news: News, isFirst?: boolean }) {
   )
 }
 
-
-interface Purchase {
-  id: string
-  saleContractAddress: string
-  buyer: string
-  totalRaised: string
-  tokenBalance: string
-  blockNumber: number
-  transactionHash: string
-  timestamp: string
-}
-
-interface SaleMetadata {
-  creator: string
-  saleGoal: string
-  logoUrl: string
-  websiteUrl: string
-  twitterUrl: string
-  telegramUrl: string
-  description: string
-}
-
-
 function NewsContainer() {
   //zastandでニュース配列をチェックしよう！！
   // ニュースの表示

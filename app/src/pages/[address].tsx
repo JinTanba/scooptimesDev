@@ -1,8 +1,9 @@
 'use client'
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Search, Send } from 'lucide-react'
+import { Search, Send, MessageCircle } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { IBM_Plex_Serif, IBM_Plex_Sans } from "next/font/google"
 import { Input } from "@/components/ui/input"
@@ -11,8 +12,14 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import TokenTrade from "@/components/TokenTrade"
 import { useSignerStore } from "@/lib/walletConnector"
-import { useEffect, useState } from "react"
 import { useRouter } from "next/router"
+import { ethers } from "ethers"
+import { Comment } from "@/types"
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = "https://lipbpiidmsjeuqemorzv.supabase.co"
+const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcGJwaWlkbXNqZXVxZW1vcnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE5MjE2MDksImV4cCI6MjA0NzQ5NzYwOX0.9u0nQ_2W99oFAfUMBp8KMyrQLfFkko55mgaV7AygzFU"
+const supabase = createClient(supabaseUrl, anonKey);
 
 const ibmPlexSerif = IBM_Plex_Serif({
   weight: ['400', '500', '600', '700'],
@@ -26,47 +33,72 @@ const ibmPlexSans = IBM_Plex_Sans({
   display: 'swap',
 })
 
-function WriteComment() {
+async function sendComment({content, wallet, parentId, newsAddress}: {content: string, wallet: ethers.Signer, parentId: string, newsAddress: string}) {
+  console.log("👉writeComment");
+  const userAddress = await wallet.getAddress();
+  const comment: Comment = {
+    content: content,
+    userAddress: userAddress,
+    parentId: parentId,
+    newsAddress: newsAddress,
+    likeCount: 0,
+  }
+  await fetch("/api/createComment", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({comment}),
+  });
+}
+
+function WriteComment({ parentId, newsAddress, onCommentSent }: { parentId: string, newsAddress: string, onCommentSent: () => void }) {
+  const [content, setContent] = useState("");
+  const wallet = useSignerStore(state => state.signer);
+
+  const handleSendComment = async () => {
+    if (wallet && content.trim()) {
+      await sendComment({content, wallet, parentId, newsAddress});
+      setContent("");
+      onCommentSent();
+    }
+  };
+
   return (
-    <div className="relative w-full flex justify-center mb-10">
-      <div className="relative w-[80%]">
+    <div className="relative w-full flex justify-center mb-4">
+      <div className="relative w-full">
         <Input
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
           placeholder="Write a comment..."
           className={`w-full h-[47px] pl-4 pr-12 rounded-[22px] border border-[#BFBFBF] bg-white ${ibmPlexSans.className}`}
         />
-        <Button
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full p-2"
-          variant="ghost"
-        >
-          <Send className="h-5 w-5" />
-          <span className="sr-only">Send comment</span>
-        </Button>
+        {wallet && (
+          <Button
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full p-2"
+            variant="ghost"
+            onClick={handleSendComment}
+          >
+            <Send className="h-5 w-5" />
+            <span className="sr-only">Send comment</span>
+          </Button>
+        )}
       </div>
     </div>
   )
 }
 
-interface CommentThreadProps {
-  address: string
-  content: string
-  balance: number
-  type?: 'PoS' | 'NeG'
-  isTop?: boolean
-}
-
-function CommentThread({ 
-  address, 
-  content, 
-  balance, 
-  type = 'NeG',
-  isTop
-}: CommentThreadProps) {
-  const formattedAddress = `${address.slice(0, 6)}....${address.slice(-4)}`
+function CommentThread({ comment, newsAddress, onCommentSent }: { comment: Comment, newsAddress: string, onCommentSent: () => void }) {
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const type = "PoS"
+  const isTop = true
+  const formattedAddress = `${comment.userAddress.slice(0, 6)}....${comment.userAddress.slice(-4)}`
   const badgeColor = type === 'PoS' ? 'bg-red-500' : 'bg-blue-500'
   const balanceBadgeColor = type === 'PoS' ? 'bg-red-100 text-red-500' : 'bg-blue-100 text-blue-500'
+  const balance = 1000
 
   return (
-    <div className="flex gap-4 ml-[80px] w-[90%] mx-auto mt-10 justify-center">
+    <div className="flex gap-4 ml-[80px] w-[90%] mx-auto mt-6 justify-center">
       <Avatar className="h-10 w-10">
         <AvatarImage src="https://pbs.twimg.com/media/EmNlJLpU4AEtZo7?format=png&name=900x900" />
         <AvatarFallback>UN</AvatarFallback>
@@ -76,7 +108,7 @@ function CommentThread({
           <span className={`text-sm ${ibmPlexSans.className}`}>{formattedAddress}</span>
           {isTop && (
             <Badge 
-            variant="secondary" 
+              variant="secondary" 
               className={cn("rounded-full px-2 py-0.5 text-white text-xs", badgeColor)}
             >
               {type}
@@ -84,9 +116,9 @@ function CommentThread({
           )}
         </div>
         <p className={`mt-1 w-[90%] text-[13px] font-normal text-[#424242] ${ibmPlexSans.className}`} style={{ fontFamily: '"IBM Plex Sans JP", sans-serif' }}>
-          {content}
+          {comment.content}
         </p>
-        <div className="mt-2">
+        <div className="mt-2 flex items-center gap-4">
           <Badge 
             variant="secondary" 
             className={cn(
@@ -96,7 +128,28 @@ function CommentThread({
           >
             balance: {balance.toLocaleString()}
           </Badge>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowReplyForm(!showReplyForm)}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <MessageCircle className="h-4 w-4 mr-1" />
+            Reply
+          </Button>
         </div>
+        {showReplyForm && (
+          <div className="mt-4">
+            <WriteComment
+              parentId={comment.id}
+              newsAddress={newsAddress}
+              onCommentSent={() => {
+                setShowReplyForm(false);
+                onCommentSent();
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -123,11 +176,11 @@ function SkeletonLoader() {
 }
 
 export default function Page() {
-  const wallet = useSignerStore(state => state.signer);
   const router = useRouter();
   const { address } = router.query;
   const [metadata, setMetadata] = useState<SaleMetadata | null>(null);
   const [loading, setLoading] = useState(true);
+  const [comments, setComments] = useState<Comment[]>([]);
 
   useEffect(() => {
     if (address) {
@@ -144,6 +197,31 @@ export default function Page() {
         });
     }
   }, [address]);
+
+  const fetchComments = async () => {
+    const { data, error } = await supabase
+      .from('comment')
+      .select()
+      .eq('newsAddress', address as string)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching comments:', error)
+      return
+    }
+
+    setComments(data || [])
+  }
+
+  useEffect(() => {
+    if (address) {
+      fetchComments()
+    }
+  }, [address])
+
+  const handleCommentSent = () => {
+    fetchComments()
+  }
   
   return (
     <div className="min-h-screen bg-white">
@@ -226,7 +304,7 @@ export default function Page() {
             </div>
           </article>
 
-          <WriteComment />
+          <WriteComment parentId={""} newsAddress={address as string} onCommentSent={handleCommentSent} />
 
           <div className="space-y-8 mt-6">
             {loading ? (
@@ -242,27 +320,14 @@ export default function Page() {
               ))
             ) : (
               <>
-                <CommentThread
-                  address="0x8218....1821"
-                  content="We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power. He tried to do much of this in his first term but was largely stymied. Now, he's intent on hiring people less likely to say no."
-                  balance={100000}
-                  type="NeG"
-                  isTop={true}
-                />
-                <CommentThread
-                  address="0x8218....1821"
-                  content="We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power. He tried to do much of this in his first term but was largely stymied. Now, he's intent on hiring people less likely to say no."
-                  balance={100000}
-                  type="NeG"
-                  isTop={true}
-                />            
-                <CommentThread
-                  address="0x8218....1821"
-                  content="We've spent two years examining the implications of a second Donald Trump presidency. He wants to radically reshape the federal government and consolidate executive power. He tried to do much of this in his first term but was largely stymied. Now, he's intent on hiring people less likely to say no."
-                  balance={100000}
-                  type="NeG"
-                  isTop={true}
-                />
+                {comments.map((comment) => (
+                  <CommentThread
+                    key={comment.id}
+                    comment={comment}
+                    newsAddress={address as string}
+                    onCommentSent={handleCommentSent}
+                  />
+                ))}
               </>
             )}
           </div>

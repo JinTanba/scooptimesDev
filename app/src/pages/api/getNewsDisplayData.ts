@@ -2,12 +2,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import factoryArtifact from "../../EtherFunFactory.json";
 import saleArtifact from "../../EtherfunSale.json";
 import { ethers } from "ethers";
-import { SaleCreatedEvent } from "../../types";
+import { DisplayData, SaleCreatedEvent } from "../../types";
 
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c";
 const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
-const factory = new ethers.Contract(factoryAddress, factoryArtifact.abi, provider);
-
 
 // struct Sale {
 //     address creator;
@@ -26,19 +24,6 @@ const factory = new ethers.Contract(factoryAddress, factoryArtifact.abi, provide
 //     string description;
 //     string[] relatedLinks;
 // }
-interface DisplayData {
-    name: string
-    symbol: string
-    logoUrl: string
-    websiteUrl: string
-    twitterUrl: string
-    telegramUrl: string
-    description: string
-    relatedLinks: string[]
-    totalRaised: string
-    saleGoal: string
-    launched: boolean
-}
 
 
 

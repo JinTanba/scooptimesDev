@@ -53,6 +53,7 @@ export const useNewsStore = create<NewsState>((set) => ({
       ],
       provider
     );
+    
     factory.on("TokensBought", (
         saleContractAddress: string,
         buyer: string,

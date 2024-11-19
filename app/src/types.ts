@@ -96,3 +96,29 @@ export interface Purchase {
     transactionHash: string;
     timestamp: string;
 }
+
+
+export interface Comment {
+    id?: string;
+    newsAddress: string;
+    content: string;
+    userAddress: string;
+    parentId: string;
+    likeCount: number;
+}
+
+export interface DisplayData {
+    name: string
+    symbol: string
+    logoUrl: string
+    websiteUrl: string
+    twitterUrl: string
+    telegramUrl: string
+    description: string
+    relatedLinks: string[]
+    totalRaised: string
+    saleGoal: string
+    launched: boolean
+}
+
+
