@@ -1,13 +1,8 @@
-'use client'
-
 import { useState, useEffect, useCallback } from 'react'
 import { ethers, BigNumber } from 'ethers'
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Progress } from "@/components/ui/progress"
 import AdvancedTradingChart from "@/components/ui/Chart"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -16,10 +11,59 @@ import saleArtifact from "../EtherfunSale.json"
 import factoryArtifact from "../EtherFunFactory.json"
 import { useRouter } from 'next/router'
 import { useSignerStore } from '@/lib/walletConnector'
-import { Toast } from '@radix-ui/react-toast'
+import { cn } from "@/lib/utils"
 
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c"
 const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65")
+
+function Skeleton({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn("animate-pulse rounded-md bg-muted", className)}
+      {...props}
+    />
+  )
+}
+
+function TokenTradeSkeleton() {
+  return (
+    <div className="bg-white ml-[20px] flex flex-col shadow-[0px_4px_36px_0px_rgba(0,0,0,0.09)] p-4 rounded-[20px] space-y-6 w-[30%] h-[45%] max-w-[550px] relative">
+      <div className="relative w-full max-h-[545px] aspect-[16/9] border border-[#cdcdcd] rounded-[20px] overflow-hidden">
+        <Skeleton className="absolute inset-0 w-full h-full" />
+      </div>
+      <div className="space-y-2 relative z-10">
+        <Tabs defaultValue="buy">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="buy">Buy</TabsTrigger>
+            <TabsTrigger value="sell">Sell</TabsTrigger>
+          </TabsList>
+          <TabsContent value="buy" className="space-y-4">
+            <Tabs defaultValue="positive">
+              <TabsList>
+                <TabsTrigger value="positive">Positive</TabsTrigger>
+                <TabsTrigger value="negative">Negative</TabsTrigger>
+              </TabsList>
+              <TabsContent value="positive">
+                <Skeleton className="h-4 w-20 mb-2" />
+                <Skeleton className="h-14 w-full rounded-full" />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+        </Tabs>
+        <Skeleton className="h-12 w-[90%] mx-auto mt-2 rounded-[20px]" />
+      </div>
+      
+      <div className="absolute bottom-[-40px] left-2 right-2 flex items-center justify-between">
+        <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="h-4 w-1/3" />
+      </div>
+    </div>
+  )
+}
 
 interface ArticleDisplay {
   address: string
@@ -44,7 +88,6 @@ interface ArticleDisplay {
   negativeTokenBalance?: string
 }
 
-// ブロックチェーン関連の関数
 async function buyToken(saleAddress: string, amount: string, position: 'positive' | 'negative', wallet: ethers.Signer) {
   const factoryContract = new ethers.Contract(factoryAddress, factoryArtifact.abi, wallet)
   const tx = await factoryContract.buyToken(saleAddress, position === 'positive' ? 0 : 1, "", {
@@ -91,7 +134,7 @@ export default function TokenTrade() {
   const [article, setArticle] = useState<ArticleDisplay | null>(null)
   const [progressPercentage, setProgressPercentage] = useState(0)
   const [amount, setAmount] = useState(0)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [isSuccess, setIsSuccess] = useState(false)
   const [activeTab, setActiveTab] = useState('buy')
   const [activePosition, setActivePosition] = useState<'positive' | 'negative'>('positive')
@@ -109,8 +152,6 @@ export default function TokenTrade() {
 
   const ethThreshold = ethers.utils.parseEther("1.5")
 
-
-  // メインのデータフェッチ関数
   const fetchData = useCallback(async () => {
     if (!address) return;
 
@@ -158,7 +199,6 @@ export default function TokenTrade() {
     }
   }, [address])
 
-  // ウォレット関連データのフェッチ関数
   const fetchWalletData = useCallback(async () => {
     if (!address || !wallet || !article) return;
 
@@ -199,24 +239,17 @@ export default function TokenTrade() {
     }
   }, [address, wallet, article, positiveToken, negativeToken])
 
-  // アドレスが変更されたときのメインデータフェッチ
   useEffect(() => {
-    console.log("👉useEffect 1", address)
     if (address) {
-      fetchData()
+      fetchData().then(() => setIsLoading(false))
     }
-  }, [address])
+  }, [address, fetchData])
 
-  // ウォレットデータの更新
   useEffect(() => {
-    console.log("👉useEffect 2", wallet, article)
     if (wallet) {
-      console.log("👉useEffect 3")
       fetchWalletData()
     }
-  }, [wallet, article])
-
-
+  }, [wallet, article, fetchWalletData])
 
   const handleBuySell = async () => {
     if (!article?.address || !amount || !wallet) return
@@ -272,7 +305,9 @@ export default function TokenTrade() {
     }
   }
 
-  if (!article) return <div>Loading...</div>
+  if (isLoading) return <TokenTradeSkeleton />
+
+  if (!article) return null
 
   return (
     <div className="bg-white ml-[20px] flex flex-col shadow-[0px_4px_36px_0px_rgba(0,0,0,0.09)] p-4 rounded-[20px] space-y-6 w-[30%] h-[45%] max-w-[550px] relative">
@@ -312,7 +347,8 @@ export default function TokenTrade() {
                     onChange={(e) => setAmount(Number(e.target.value))}
                     type="number" 
                     defaultValue="0" 
-                    className="h-14 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#2929ff97]"
+                    className="h-14 
+rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#2929ff97]"
                   />
                 </TabsContent>
               </Tabs>
@@ -379,7 +415,7 @@ export default function TokenTrade() {
         <Button 
           onClick={handleBuySell}
           className={`
-            ml-[14px] items-center w-[90%] h-14 mt-2 mb-[10px] rounded-[10px] 
+            ml-[14px] items-center w-[90%] h-12 mt-2 mb-[10px] rounded-[20px] 
             ${isSuccess 
               ? "bg-green-500 hover:bg-green-600 text-white" 
               : amount > 0 
@@ -428,3 +464,4 @@ export default function TokenTrade() {
     </div>
   )
 }
+

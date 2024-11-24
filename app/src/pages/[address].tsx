@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Search, Send, MessageCircle } from 'lucide-react'
+import { Search, Send, MessageCircle, Share2, Heart } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { IBM_Plex_Serif, IBM_Plex_Sans } from "next/font/google"
 import { Input } from "@/components/ui/input"
@@ -52,6 +52,44 @@ async function sendComment({content, wallet, parentId, newsAddress}: {content: s
   });
 }
 
+interface CommentNode extends Comment {
+  replies: CommentNode[];
+}
+
+function buildCommentTree(comments: Comment[]): CommentNode[] {
+  const commentMap = new Map<number, CommentNode>();
+  const roots: CommentNode[] = [];
+
+  // First, convert all comments to CommentNodes with empty replies array
+  comments.forEach(comment => {
+    commentMap.set(Number(comment.id)!, {
+      ...comment,
+      replies: []
+    });
+  });
+
+  // Then, build the tree structure
+  comments.forEach(comment => {
+    const node = commentMap.get(Number(comment.id)!);
+    if (node) {
+      if (!comment.parentId) {
+        // This is a root comment
+        roots.push(node);
+      } else {
+        // This is a reply
+        const parentNode = commentMap.get(Number(comment.parentId));
+        if (parentNode) {
+          parentNode.replies.push(node);
+        }
+      }
+    }
+  });
+
+  console.log(roots)
+
+  return roots;
+}
+
 function WriteComment({ parentId, newsAddress, onCommentSent }: { parentId: string, newsAddress: string, onCommentSent: () => void }) {
   const [content, setContent] = useState("");
   const wallet = useSignerStore(state => state.signer);
@@ -65,8 +103,8 @@ function WriteComment({ parentId, newsAddress, onCommentSent }: { parentId: stri
   };
 
   return (
-    <div className="relative w-full flex justify-center mb-4">
-      <div className="relative w-full">
+    <div className="relative w-full mb-4">
+      <div className="ml-20 relative w-[80%]">
         <Input
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -87,9 +125,14 @@ function WriteComment({ parentId, newsAddress, onCommentSent }: { parentId: stri
     </div>
   )
 }
-
-function CommentThread({ comment, newsAddress, onCommentSent }: { comment: Comment, newsAddress: string, onCommentSent: () => void }) {
+function CommentThread({ comment, newsAddress, onCommentSent, depth = 0 }: { 
+  comment: CommentNode; 
+  newsAddress: string; 
+  onCommentSent: () => void;
+  depth?: number;
+}) {
   const [showReplyForm, setShowReplyForm] = useState(false);
+  const [likeCount, setLikeCount] = useState(comment.likeCount || 0);
   const type = "PoS"
   const isTop = true
   const formattedAddress = `${comment.userAddress.slice(0, 6)}....${comment.userAddress.slice(-4)}`
@@ -97,63 +140,125 @@ function CommentThread({ comment, newsAddress, onCommentSent }: { comment: Comme
   const balanceBadgeColor = type === 'PoS' ? 'bg-red-100 text-red-500' : 'bg-blue-100 text-blue-500'
   const balance = 1000
 
+  const handleLike = () => {
+    setLikeCount(prevCount => prevCount + 1);
+    // Here you would typically also send a request to update the like count in your backend
+  };
+
+  const handleShare = () => {
+    // Implement share functionality here
+    console.log('Share comment:', comment.id);
+  };
+
   return (
-    <div className="flex gap-4 ml-[80px] w-[90%] mx-auto mt-6 justify-center">
-      <Avatar className="h-10 w-10">
-        <AvatarImage src="https://pbs.twimg.com/media/EmNlJLpU4AEtZo7?format=png&name=900x900" />
-        <AvatarFallback>UN</AvatarFallback>
-      </Avatar>
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <span className={`text-sm ${ibmPlexSans.className}`}>{formattedAddress}</span>
-          {isTop && (
-            <Badge 
-              variant="secondary" 
-              className={cn("rounded-full px-2 py-0.5 text-white text-xs", badgeColor)}
-            >
-              {type}
-            </Badge>
+    <div className="group mb-6 mt-8"> {/* Added margin-bottom for spacing between comments */}
+      <div className="flex gap-4">
+        {/* Avatar and content column */}
+        <div className="flex-shrink-0 relative">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src="https://pbs.twimg.com/media/EmNlJLpU4AEtZo7?format=png&name=900x900" />
+            <AvatarFallback>UN</AvatarFallback>
+          </Avatar>
+          
+          {/* Vertical line for replies */}
+          {comment.replies.length > 0 && (
+            <div className="absolute left-5 top-10 bottom-0 w-px bg-gray-200 group-hover:bg-gray-300" />
           )}
         </div>
-        <p className={`mt-1 w-[90%] text-[13px] font-normal text-[#424242] ${ibmPlexSans.className}`} style={{ fontFamily: '"IBM Plex Sans JP", sans-serif' }}>
-          {comment.content}
-        </p>
-        <div className="mt-2 flex items-center gap-4">
-          <Badge 
-            variant="secondary" 
-            className={cn(
-              "rounded-full px-2 py-0.5 text-xs",
-              balanceBadgeColor
+        
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className={`text-sm ${ibmPlexSans.className}`}>{formattedAddress}</span>
+            {isTop && (
+              <Badge 
+                variant="secondary" 
+                className={cn("rounded-full px-2 py-0.5 text-white text-xs", badgeColor)}
+              >
+                {type}
+              </Badge>
             )}
-          >
-            balance: {balance.toLocaleString()}
-          </Badge>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowReplyForm(!showReplyForm)}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <MessageCircle className="h-4 w-4 mr-1" />
-            Reply
-          </Button>
-        </div>
-        {showReplyForm && (
-          <div className="mt-4">
-            <WriteComment
-              parentId={comment.id || ""}
-              newsAddress={newsAddress}
-              onCommentSent={() => {
-                setShowReplyForm(false);
-                onCommentSent();
-              }}
-            />
           </div>
-        )}
+          <p className={`mt-1 text-[13px] font-normal text-[#424242] ${ibmPlexSans.className}`}>
+            {comment.content}
+          </p>
+          <div className="mt-2 flex items-center gap-1">
+            <Badge 
+              variant="secondary" 
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs",
+                balanceBadgeColor
+              )}
+            >
+              balance: {balance.toLocaleString()}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowReplyForm(!showReplyForm)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <MessageCircle className="h-4 w-4 mr-1" />
+              Reply
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLike}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <Heart className="h-4 w-4 mr-1" />
+              {likeCount}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleShare}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <Share2 className="h-4 w-4 mr-1" />
+              Share
+            </Button>
+          </div>
+          {showReplyForm && (
+            <div className="mt-4">
+              <WriteComment
+                parentId={comment.id || ""}
+                newsAddress={newsAddress}
+                onCommentSent={() => {
+                  setShowReplyForm(false);
+                  onCommentSent();
+                }}
+              />
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Render nested replies */}
+      {comment.replies.length > 0 && (
+        <div className="pl-[52px] mt-2 relative">
+          {/* Horizontal curve */}
+          <div className="absolute left-5 top-0 w-[47px] h-6">
+            <div className="absolute left-0 top-0 w-full h-full border-l-2 border-b-2 border-gray-200 rounded-bl-xl group-hover:border-gray-300" />
+          </div>
+          
+          <div className="space-y-4">
+            {comment.replies.map((reply) => (
+              <CommentThread
+                key={reply.id}
+                comment={reply}
+                newsAddress={newsAddress}
+                onCommentSent={onCommentSent}
+                depth={depth + 1}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
 
 interface SaleMetadata {
   creator: string
@@ -180,7 +285,7 @@ export default function Page() {
   const { address } = router.query;
   const [metadata, setMetadata] = useState<SaleMetadata | null>(null);
   const [loading, setLoading] = useState(true);
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentTree, setCommentTree] = useState<CommentNode[]>([]);
 
   const fetchComments = async () => {
     const { data, error } = await supabase
@@ -193,8 +298,11 @@ export default function Page() {
       console.error('Error fetching comments:', error)
       return
     }
-
-    setComments(data || [])
+    
+    // Build the comment tree
+    const tree = buildCommentTree(data || []);
+    console.log('TREEEEEsssssss', tree)
+    setCommentTree(tree);
   }
 
   useEffect(() => {
@@ -213,14 +321,11 @@ export default function Page() {
     }
   }, [address]);
 
-
-
   useEffect(() => {
     if (address) {
       fetchComments()
     }
   }, [address])
-
 
   const handleCommentSent = () => {
     fetchComments()
@@ -229,49 +334,14 @@ export default function Page() {
   return (
     <div className="min-h-screen bg-white">
       <header className="w-full">
-        <div className="max-w-[80%] mx-auto">
-          <div className="py-1">
-            <h1 className={`text-center text-[54px] font-[600] text-black ${ibmPlexSerif.className}`}>
-              Scoop Times
-            </h1>
-          </div>
-          
-          <div className="relative">
-            <div className="flex items-center justify-between py-3 relative">
-              <div className="relative w-48">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-                <input
-                  className={`h-8 w-full rounded-full bg-neutral-100 pl-9 pr-4 text-sm outline-none ${ibmPlexSans.className}`}
-                  placeholder="search"
-                  type="search"
-                />
-              </div>
-              <nav className="flex items-center space-x-6 text-black absolute left-1/2 transform -translate-x-1/2">
-                <Link className={`text-sm hover:text-neutral-600 ${ibmPlexSerif.className}`} href="#">all</Link>
-                <Link className={`text-sm hover:text-neutral-600 ${ibmPlexSerif.className}`} href="#">Crypto</Link>
-                <Link className={`text-sm hover:text-neutral-600 ${ibmPlexSerif.className}`} href="#">politics</Link>
-                <Link className={`text-sm hover:text-neutral-600 ${ibmPlexSerif.className}`} href="#">sports</Link>
-                <Link className={`text-sm hover:text-neutral-600 ${ibmPlexSerif.className}`} href="#">tech</Link>
-              </nav>
-              <Button
-                className="flex items-center gap-0 p-0 text-black hover:text-neutral-600"
-                variant="ghost"
-                onClick={() => {/* Add your modal open logic here */}}
-              >
-                <span className="pl-4">[</span>
-                <Image
-                  src="/fire.gif"
-                  alt="Fire icon"
-                  width={30}
-                  height={30}
-                  className="mx-0"
-                />
-                <span className="pr-4">create new topic]</span>
-              </Button>
-            </div>
-            <div className="absolute left-0 right-0 bottom-0 h-[1px] bg-neutral-200" />
-            <div className="absolute left-0 right-0 bottom-[-3px] h-[1px] bg-neutral-200" />
-          </div>
+        <div className="max-w-[80%] mx-auto flex items-center justify-between py-2 border-b-2 border-black-500">
+          <Link href="/" className="text-black font-['Times_New_Roman'] text-lg">
+            [back]
+          </Link>
+          <h1 className={`text-center text-[25px] font-[600] text-black ${ibmPlexSerif.className}`}>
+            Skin In The Game
+          </h1>
+          <div className="w-[70px]"></div> {/* Spacer to balance the layout */}
         </div>
       </header>
 
@@ -307,12 +377,14 @@ export default function Page() {
             </div>
           </article>
 
-          <WriteComment parentId={""} newsAddress={address as string} onCommentSent={handleCommentSent} />
+          <div className="mt-8">
+            <WriteComment parentId={""} newsAddress={address as string} onCommentSent={handleCommentSent} />
+          </div>
 
           <div className="space-y-8 mt-6">
             {loading ? (
               Array(3).fill(null).map((_, index) => (
-                <div key={index} className="animate-pulse flex gap-4 ml-[80px] w-[90%] mx-auto mt-10 justify-center">
+                <div key={index} className="animate-pulse flex gap-4 w-full mt-10">
                   <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
                   <div className="flex-1">
                     <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
@@ -322,16 +394,16 @@ export default function Page() {
                 </div>
               ))
             ) : (
-              <>
-                {comments.map((comment) => (
-                  <CommentThread
-                    key={comment.id}
-                    comment={comment}
-                    newsAddress={address as string}
-                    onCommentSent={handleCommentSent}
-                  />
-                ))}
-              </>
+            <div className="w-[80%] mx-auto">
+              {commentTree.map((comment) => (
+                <CommentThread
+                  key={comment.id}
+                  comment={comment}
+                  newsAddress={address as string}
+                  onCommentSent={handleCommentSent}
+                />
+              ))}
+            </div>
             )}
           </div>
         </section>
@@ -340,3 +412,4 @@ export default function Page() {
     </div>
   )
 }
+

@@ -173,7 +173,7 @@ export default function Component() {
         <header className="w-full">
           <div className="py-0">
             <h1 className={`text-center text-[50px] font-[600] text-black ${ibmPlexSerif.className}`}>
-              Scoop Times
+              Skin in the game
             </h1>
           </div>
           
