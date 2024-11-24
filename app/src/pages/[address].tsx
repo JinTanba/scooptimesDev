@@ -395,7 +395,7 @@ export default function Page() {
               ))
             ) : (
             <div className="w-[80%] mx-auto">
-              {commentTree.map((comment) => (
+                {commentTree.map((comment) => (
                 <CommentThread
                   key={comment.id}
                   comment={comment}

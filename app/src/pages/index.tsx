@@ -144,7 +144,7 @@ function NewsContainer() {
   return (
     <div className="grid grid-cols-2 2xl:grid-cols-3 gap-6 w-full">
       <AnimatePresence>
-        {news?.map((item, index) => (
+        {[...news].reverse()?.map((item, index) => (
           <NewsItem 
             key={`${item.saleContractAddress}-${index}`} 
             news={item} 
