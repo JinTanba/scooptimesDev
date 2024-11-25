@@ -73,10 +73,9 @@ function newsReducer(state: News[], action: NewsAction): News[] {
 
 export default function App({ Component, pageProps }: AppPropsWithWallet) {
   const initializeEventListeners = useNewsStore(state => state.initializeEventListeners);
-  const news = useNewsStore(state => state.news);
+
    useEffect(() => {
      console.log("Hi")
-     if(news.length > 0) return;
      console.log("initializeEventListeners")
      initializeEventListeners(factoryAddress);
    }, []);
@@ -88,10 +87,7 @@ export default function App({ Component, pageProps }: AppPropsWithWallet) {
     switchAccount
   } = useMetaMaskWallet(false);
 
-  const [asigner, setSigner] = useState<ethers.Signer>();
-
   const signer = useSignerStore(state => state.signer);
-
 
   return (
     <div className="bg-white min-h-screen max-w-screen overflow-hidden text-black">

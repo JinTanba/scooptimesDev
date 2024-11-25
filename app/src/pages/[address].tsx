@@ -1,4 +1,3 @@
-'use client'
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
@@ -60,7 +59,6 @@ function buildCommentTree(comments: Comment[]): CommentNode[] {
   const commentMap = new Map<number, CommentNode>();
   const roots: CommentNode[] = [];
 
-  // First, convert all comments to CommentNodes with empty replies array
   comments.forEach(comment => {
     commentMap.set(Number(comment.id)!, {
       ...comment,
@@ -68,15 +66,12 @@ function buildCommentTree(comments: Comment[]): CommentNode[] {
     });
   });
 
-  // Then, build the tree structure
   comments.forEach(comment => {
     const node = commentMap.get(Number(comment.id)!);
     if (node) {
       if (!comment.parentId) {
-        // This is a root comment
         roots.push(node);
       } else {
-        // This is a reply
         const parentNode = commentMap.get(Number(comment.parentId));
         if (parentNode) {
           parentNode.replies.push(node);
@@ -125,6 +120,7 @@ function WriteComment({ parentId, newsAddress, onCommentSent }: { parentId: stri
     </div>
   )
 }
+
 function CommentThread({ comment, newsAddress, onCommentSent, depth = 0 }: { 
   comment: CommentNode; 
   newsAddress: string; 
@@ -142,25 +138,21 @@ function CommentThread({ comment, newsAddress, onCommentSent, depth = 0 }: {
 
   const handleLike = () => {
     setLikeCount(prevCount => prevCount + 1);
-    // Here you would typically also send a request to update the like count in your backend
   };
 
   const handleShare = () => {
-    // Implement share functionality here
     console.log('Share comment:', comment.id);
   };
 
   return (
-    <div className="group mb-6 mt-8"> {/* Added margin-bottom for spacing between comments */}
+    <div className="group mb-6 mt-8">
       <div className="flex gap-4">
-        {/* Avatar and content column */}
         <div className="flex-shrink-0 relative">
           <Avatar className="h-10 w-10">
             <AvatarImage src="https://pbs.twimg.com/media/EmNlJLpU4AEtZo7?format=png&name=900x900" />
             <AvatarFallback>UN</AvatarFallback>
           </Avatar>
           
-          {/* Vertical line for replies */}
           {comment.replies.length > 0 && (
             <div className="absolute left-5 top-10 bottom-0 w-px bg-gray-200 group-hover:bg-gray-300" />
           )}
@@ -234,10 +226,8 @@ function CommentThread({ comment, newsAddress, onCommentSent, depth = 0 }: {
         </div>
       </div>
 
-      {/* Render nested replies */}
       {comment.replies.length > 0 && (
         <div className="pl-[52px] mt-2 relative">
-          {/* Horizontal curve */}
           <div className="absolute left-5 top-0 w-[47px] h-6">
             <div className="absolute left-0 top-0 w-full h-full border-l-2 border-b-2 border-gray-200 rounded-bl-xl group-hover:border-gray-300" />
           </div>
@@ -259,7 +249,6 @@ function CommentThread({ comment, newsAddress, onCommentSent, depth = 0 }: {
   )
 }
 
-
 interface SaleMetadata {
   creator: string
   saleGoal: string
@@ -276,6 +265,30 @@ function SkeletonLoader() {
     <div className="animate-pulse">
       <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
       <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+    </div>
+  )
+}
+
+function FeaturedComment({ author, content }: { author: string; content: string }) {
+  return (
+    <div className="rounded-[23px] bg-white shadow-[0px_4px_36px_0px_rgba(0,0,0,0.09)] p-6 mb-6 w-1/2">
+      <div className="flex items-start gap-4">
+        <Avatar className="h-12 w-12">
+          <AvatarImage src="/placeholder.svg" />
+          <AvatarFallback>{author[0]}</AvatarFallback>
+        </Avatar>
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`font-medium ${ibmPlexSans.className}`}>{author}</span>
+            <Badge variant="secondary" className="bg-primary text-white rounded-full px-2 py-0.5 text-xs">
+              Featured
+            </Badge>
+          </div>
+          <p className={`text-[15px] text-gray-700 ${ibmPlexSans.className}`}>
+            {content}
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -299,9 +312,7 @@ export default function Page() {
       return
     }
     
-    // Build the comment tree
     const tree = buildCommentTree(data || []);
-    console.log('TREEEEEsssssss', tree)
     setCommentTree(tree);
   }
 
@@ -341,7 +352,7 @@ export default function Page() {
           <h1 className={`text-center text-[25px] font-[600] text-black ${ibmPlexSerif.className}`}>
             Skin In The Game
           </h1>
-          <div className="w-[70px]"></div> {/* Spacer to balance the layout */}
+          <div className="w-[70px]"></div>
         </div>
       </header>
 
@@ -378,6 +389,17 @@ export default function Page() {
           </article>
 
           <div className="mt-8">
+            <div className="mb-8 flex gap-4">
+              <FeaturedComment 
+                author="John Doe"
+                content="This is a groundbreaking piece that really captures the essence of modern music journalism. The analysis is spot-on and provides valuable insights."
+              />
+              <FeaturedComment 
+                author="Jane Smith"
+                content="Exceptional reporting that goes beyond the surface. The detailed breakdown of each track shows a deep understanding of musical evolution."
+              />
+            </div>
+
             <WriteComment parentId={""} newsAddress={address as string} onCommentSent={handleCommentSent} />
           </div>
 

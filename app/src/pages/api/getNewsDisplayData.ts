@@ -7,25 +7,6 @@ import { DisplayData, SaleCreatedEvent } from "../../types";
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c";
 const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
 
-// struct Sale {
-//     address creator;
-//     string name;
-//     string symbol;
-//     uint256 totalRaised;
-//     uint256 saleGoal;
-//     bool launched;
-//     uint256 creationNonce;
-// }
-// struct SaleMetadata {
-//     string logoUrl;
-//     string websiteUrl;
-//     string twitterUrl;
-//     string telegramUrl;
-//     string description;
-//     string[] relatedLinks;
-// }
-
-
 
 export default async function handler(
   req: NextApiRequest,

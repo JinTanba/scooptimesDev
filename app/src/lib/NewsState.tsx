@@ -2,11 +2,7 @@ import {create} from 'zustand';
 import { ethers } from 'ethers';
 import { News } from '@/types';
 
-
-const testPrivateKey = "68bf6ec02461aecaa2d401ff255a39dc1f97a23f4755837b0a06391513101846";
 const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
-const testWallet = new ethers.Wallet(testPrivateKey, provider);
-const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c";
 
 type NewsState = {
   news: News[];
@@ -41,7 +37,6 @@ export const useNewsStore = create<NewsState>((set) => ({
     let jsondata = await data.json() 
     if(!jsondata?.data) return [];
     const sale = jsondata.data.sales;
-    console.log("sale!!!!!!", sale);
     set({ news: [...sale] })
     const factory = new ethers.Contract(
       factoryAddress,
