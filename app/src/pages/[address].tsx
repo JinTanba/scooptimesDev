@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Search, Send, MessageCircle, Share2, Heart } from 'lucide-react'
+import { Search, Send, MessageCircle, Share2, Heart, Coins, ChevronUp, ChevronDown, X } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { IBM_Plex_Serif, IBM_Plex_Sans } from "next/font/google"
 import { Input } from "@/components/ui/input"
@@ -15,6 +15,7 @@ import { useRouter } from "next/router"
 import { ethers } from "ethers"
 import { Comment } from "@/types"
 import { createClient } from '@supabase/supabase-js'
+import { Textarea } from "@/components/ui/textarea"
 
 const supabaseUrl = "https://lipbpiidmsjeuqemorzv.supabase.co"
 const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcGJwaWlkbXNqZXVxZW1vcnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE5MjE2MDksImV4cCI6MjA0NzQ5NzYwOX0.9u0nQ_2W99oFAfUMBp8KMyrQLfFkko55mgaV7AygzFU"
@@ -84,42 +85,59 @@ function buildCommentTree(comments: Comment[]): CommentNode[] {
 
   return roots;
 }
-
 function WriteComment({ parentId, newsAddress, onCommentSent }: { parentId: string, newsAddress: string, onCommentSent: () => void }) {
   const [content, setContent] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
   const wallet = useSignerStore(state => state.signer);
 
   const handleSendComment = async () => {
     if (wallet && content.trim()) {
       await sendComment({content, wallet, parentId, newsAddress});
       setContent("");
+      setIsExpanded(false);
       onCommentSent();
     }
+  };
+
+  const handleClose = () => {
+    setIsExpanded(false);
+    setContent("");
   };
 
   return (
     <div className="relative w-full mb-4">
       <div className="ml-20 relative w-[80%]">
-        <Input
+        <Textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
+          onFocus={() => setIsExpanded(true)}
           placeholder="Write a comment..."
-          className={`w-full h-[47px] pl-4 pr-12 rounded-[22px] border border-[#BFBFBF] bg-white ${ibmPlexSans.className}`}
+          className={`w-full px-4 rounded-[22px] border border-[#BFBFBF] bg-white transition-all duration-300 ease-in-out resize-none ${
+            isExpanded ? 'h-32 pb-14' : 'h-[47px] py-3'
+          } ${ibmPlexSans.className}`}
         />
-        {wallet && (
-          <Button
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full p-2"
-            variant="ghost"
-            onClick={handleSendComment}
-          >
-            <Send className="h-5 w-5" />
-            <span className="sr-only">Send comment</span>
-          </Button>
+        {isExpanded && wallet && (
+          <div className="absolute right-3 bottom-3 flex items-center gap-2">
+            <Button
+              variant="ghost"
+              onClick={handleClose}
+              className="text-gray-500 hover:text-gray-700 px-4 h-8 rounded-full"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendComment}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 h-8 rounded-full"
+            >
+              Comment
+            </Button>
+          </div>
         )}
       </div>
     </div>
   )
 }
+
 
 function CommentThread({ comment, newsAddress, onCommentSent, depth = 0 }: { 
   comment: CommentNode; 
@@ -269,22 +287,28 @@ function SkeletonLoader() {
   )
 }
 
-function FeaturedComment({ author, content }: { author: string; content: string }) {
+function FeaturedComment({ author, content, status }: { author: string; content: string, status: "positive" | "negative" }) {
+  const badgeColor = status === "positive" ? "bg-red-500" : "bg-blue-500"
+  const badgeText = status === "positive" ? "Positive" : "Negative"
   return (
-    <div className="rounded-[23px] bg-white shadow-[0px_4px_36px_0px_rgba(0,0,0,0.09)] p-6 mb-6 w-1/2">
+    <div className="rounded-[23px] bg-white shadow-[0px_4px_36px_0px_rgba(0,0,0,0.09)] p-3 pt-5 pb-5 mb-6 w-1/2">
       <div className="flex items-start gap-4">
         <Avatar className="h-12 w-12">
-          <AvatarImage src="/placeholder.svg" />
+          <AvatarImage src="/placeholder.svg" alt={author} />
           <AvatarFallback>{author[0]}</AvatarFallback>
         </Avatar>
-        <div>
-          <div className="flex items-center gap-2 mb-2">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className={`font-medium ${ibmPlexSans.className}`}>{author}</span>
-            <Badge variant="secondary" className="bg-primary text-white rounded-full px-2 py-0.5 text-xs">
-              Featured
+            <Badge variant="secondary" className={`${badgeColor} text-white rounded-full px-2 py-0.5 text-xs`}>
+              {badgeText}
             </Badge>
+            <div className="flex items-center gap-1 text-sm text-gray-500">
+              <Coins className="w-4 h-4" />
+              <span className={ibmPlexSans.className}>{10000} tokens</span>
+            </div>
           </div>
-          <p className={`text-[15px] text-gray-700 ${ibmPlexSans.className}`}>
+          <p className={`text-[12px] text-gray-700 ${ibmPlexSans.className}`}>
             {content}
           </p>
         </div>
@@ -299,6 +323,17 @@ export default function Page() {
   const [metadata, setMetadata] = useState<SaleMetadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [commentTree, setCommentTree] = useState<CommentNode[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  const truncateDescription = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + '...';
+  };
+
 
   const fetchComments = async () => {
     const { data, error } = await supabase
@@ -358,7 +393,7 @@ export default function Page() {
 
       <main className="max-w-[80%] mx-auto mt-8 flex justify-between">
         <section className="flex-1 mr-8">
-          <article className="flex gap-6 mb-8">
+        <article className="flex gap-6 mb-8">
             <div className="flex-shrink-0">
               {loading ? (
                 <div className="w-[115px] h-[115px] rounded-full bg-gray-200 animate-pulse"></div>
@@ -380,9 +415,33 @@ export default function Page() {
                   <h2 className={`text-[41px] font-normal leading-tight mb-4 ${ibmPlexSerif.className}`}>
                     {metadata?.name || ""}
                   </h2>
-                  <p className={`text-[13px] font-light ${ibmPlexSans.className}`}>
-                    {metadata?.description || ""}
-                  </p>
+                  <div className={`text-[13px] font-light ${ibmPlexSans.className}`}>
+                    <p>
+                      {isExpanded
+                        ? metadata?.description
+                        : truncateDescription(metadata?.description || "", 300)}
+                    </p>
+                    {(metadata?.description?.length || 0) > 300 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={toggleExpand}
+                        className="mt-2 text-blue-500 hover:text-blue-700"
+                      >
+                        {isExpanded ? (
+                          <>
+                            <ChevronUp className="h-4 w-4 mr-1" />
+                            Show Less
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-4 w-4 mr-1" />
+                            Read More
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </>
               )}
             </div>
@@ -393,10 +452,12 @@ export default function Page() {
               <FeaturedComment 
                 author="John Doe"
                 content="This is a groundbreaking piece that really captures the essence of modern music journalism. The analysis is spot-on and provides valuable insights."
+                status="positive"
               />
               <FeaturedComment 
                 author="Jane Smith"
                 content="Exceptional reporting that goes beyond the surface. The detailed breakdown of each track shows a deep understanding of musical evolution."
+                status="negative"
               />
             </div>
 

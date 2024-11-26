@@ -16,7 +16,7 @@ export default async function handler(
     const latestBlock = await provider.getBlockNumber();
     console.log(latestBlock);
     const filter = factory.filters.SaleCreated();
-    const events = await factory.queryFilter(filter, 0, latestBlock);
+    const events = await factory.queryFilter(filter, 7018959, latestBlock);
 
     // Process events and fetch sale data concurrently
     const processedData = await Promise.all(

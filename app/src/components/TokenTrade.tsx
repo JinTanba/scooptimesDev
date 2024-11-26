@@ -12,6 +12,7 @@ import factoryArtifact from "../EtherFunFactory.json"
 import { useRouter } from 'next/router'
 import { useSignerStore } from '@/lib/walletConnector'
 import { cn } from "@/lib/utils"
+import { Progress } from '@radix-ui/react-progress'
 
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c"
 const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65")
@@ -311,157 +312,201 @@ export default function TokenTrade() {
 
   return (
     <div className="bg-white ml-[20px] flex flex-col shadow-[0px_4px_36px_0px_rgba(0,0,0,0.09)] p-4 rounded-[20px] space-y-6 w-[30%] h-[45%] max-w-[550px] relative">
-      <div className="relative w-full max-h-[545px] aspect-[16/9] border border-[#cdcdcd] rounded-[20px] overflow-hidden" >
-        <div className="absolute inset-0 w-full h-full">
-          <AdvancedTradingChart />
-        </div>
+    <div className="relative w-full max-h-[545px] aspect-[16/9] border border-[#cdcdcd] rounded-[20px] overflow-hidden" >
+      <div className="absolute inset-0 w-full h-full">
+        <AdvancedTradingChart />
       </div>
-      <div className="space-y-2 relative z-10">
-        {article.launched ? (
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="flex items-center justify-between">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="buy">Buy</TabsTrigger>
-                <TabsTrigger value="sell">Sell</TabsTrigger>
-              </TabsList>
-            </div>
-            
-            <TabsContent value="buy" className="space-y-4">
-              <Tabs defaultValue="positive" onValueChange={(value) => setActivePosition(value as 'positive' | 'negative')}>
-                <TabsList>
-                  <TabsTrigger className="border-[#ff24247e] text-[10px]" value="positive">Positive</TabsTrigger>
-                  <TabsTrigger className="border-[#2929ff97] text-[10px]" value="negative">Negative</TabsTrigger>
-                </TabsList>
-                <TabsContent value="positive">
-                  <Label className="text-base text-[10px] text-black font-thin">pay eth</Label>
-                  <Input 
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    type="number" 
-                    defaultValue="0" 
-                    className="h-14 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#ff24247e]"
-                  />
-                </TabsContent>
-                <TabsContent value="negative">
-                  <Label className="text-base text-[10px] text-black font-thin">pay eth</Label>
-                  <Input 
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    type="number" 
-                    defaultValue="0" 
-                    className="h-14 
-rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#2929ff97]"
-                  />
-                </TabsContent>
-              </Tabs>
-            </TabsContent>
-            
-            <TabsContent value="sell" className="space-y-4">
-              <Tabs defaultValue="positive" onValueChange={(value) => setActivePosition(value as 'positive' | 'negative')}>
-                <TabsList>
-                  <TabsTrigger className="border-[#ff24247e] text-[10px]" value="positive">Positive</TabsTrigger>
-                  <TabsTrigger className="border-[#2929ff97] text-[10px]" value="negative">Negative</TabsTrigger>
-                </TabsList>
-                <TabsContent value="positive">
-                  <Label className="text-base text-[10px] text-black font-thin">pay eth</Label>
-                  <Input 
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    type="number" 
-                    defaultValue="0" 
-                    className="h-14 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#ff24247e]"
-                  />
-                </TabsContent>
-                <TabsContent value="negative">
-                  <Label className="text-base text-[10px] text-black font-thin">pay eth</Label>
-                  <Input 
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    type="number" 
-                    defaultValue="0" 
-                    className="h-12 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#2929ff97]"
-                  />
-                </TabsContent>
-              </Tabs>
-            </TabsContent>
-          </Tabs>
-        ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+    </div>
+    <div className="space-y-2 relative z-10">
+      {article?.launched ? (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="flex items-center justify-between mb-4">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="buy">Buy</TabsTrigger>
               <TabsTrigger value="sell">Sell</TabsTrigger>
             </TabsList>
-            <div className="bg-[#ffffff] p-3 rounded-xl space-y-2">
-              <p className="text-[#000000] text-[14px]">
-                bonding curve progress: {progressPercentage}%
-              </p>
-              <div className="h-8 bg-[#f2f2f2] rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-[#00ff48] rounded-full transition-all duration-300 ease-in-out"
-                  style={{ width: `${progressPercentage}%` }}
-                />
+          </div>
+          
+          <TabsContent value="buy" className="space-y-4">
+            <Tabs defaultValue="positive" onValueChange={(value) => setActivePosition(value as 'positive' | 'negative')}>
+              <TabsList className="w-full mb-2">
+                <TabsTrigger className="flex-1 border-[#ff24247e] text-[10px]" value="positive">Positive</TabsTrigger>
+                <TabsTrigger className="flex-1 border-[#2929ff97] text-[10px]" value="negative">Negative</TabsTrigger>
+              </TabsList>
+              <div className="mb-4">
+                <Label className="text-xs text-gray-500 mb-1 block">Positive/Negative Ratio</Label>
+                <div className="flex items-center">
+                  <div className="flex-grow h-4 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="flex h-full">
+                      <div
+                        className="h-full bg-red-500 transition-all duration-300 ease-in-out"
+                        style={{ width: '70%' }}
+                        role="progressbar"
+                        aria-valuenow={70}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      ></div>
+                      <div
+                        className="h-full bg-blue-500 transition-all duration-300 ease-in-out"
+                        style={{ width: '30%' }}
+                      ></div>
+                    </div>
+                  </div>
+                  <span className="text-xs ml-2">70/30</span>
+                </div>
               </div>
-              <p className="text-sm font-thin text-[#6b6b6b]">
-                {ethers.utils.formatEther(article.totalRaised)} ETH raised out of {ethers.utils.formatEther(ethThreshold)} ETH threshold
-              </p>
-              <div className="space-y-2">
-                <Label className="text-base text-[14px] font-normal text-black">amount {activeTab === 'buy' ? 'eth' : article.symbol}</Label>
+              <TabsContent value="positive">
+                <Label className="text-base text-[10px] text-black font-thin">pay eth</Label>
                 <Input 
                   onChange={(e) => setAmount(Number(e.target.value))}
                   type="number" 
                   defaultValue="0" 
-                  className="h-14 rounded-full mt-0 text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 focus-visible:border-[#E5E5E5]"
+                  className="h-14 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#ff24247e]"
                 />
+              </TabsContent>
+              <TabsContent value="negative">
+                <Label className="text-base text-[10px] text-black font-thin">pay eth</Label>
+                <Input 
+                  onChange={(e) => setAmount(Number(e.target.value))}
+                  type="number" 
+                  defaultValue="0" 
+                  className="h-14 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#2929ff97]"
+                />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+          
+          <TabsContent value="sell" className="space-y-4">
+            <Tabs defaultValue="positive" onValueChange={(value) => setActivePosition(value as 'positive' | 'negative')}>
+              <TabsList className="w-full mb-2">
+                <TabsTrigger className="flex-1 border-[#ff24247e] text-[10px]" value="positive">Positive</TabsTrigger>
+                <TabsTrigger className="flex-1 border-[#2929ff97] text-[10px]" value="negative">Negative</TabsTrigger>
+              </TabsList>
+              <div className="mb-4">
+                <Label className="text-xs text-gray-500 mb-1 block">Positive/Negative Ratio</Label>
+                <div className="flex items-center">
+                  <div className="flex-grow h-4 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="flex h-full">
+                      <div
+                        className="h-full bg-red-500 transition-all duration-300 ease-in-out"
+                        style={{ width: '70%' }}
+                        role="progressbar"
+                        aria-valuenow={70}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      ></div>
+                      <div
+                        className="h-full bg-blue-500 transition-all duration-300 ease-in-out"
+                        style={{ width: '30%' }}
+                      ></div>
+                    </div>
+                  </div>
+                  <span className="text-xs ml-2">70/30</span>
+                </div>
               </div>
+              <TabsContent value="positive">
+                <Label className="text-base text-[10px] text-black font-thin">sell amount</Label>
+                <Input 
+                  onChange={(e) => setAmount(Number(e.target.value))}
+                  type="number" 
+                  defaultValue="0" 
+                  className="h-14 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#ff24247e]"
+                />
+              </TabsContent>
+              <TabsContent value="negative">
+                <Label className="text-base text-[10px] text-black font-thin">sell amount</Label>
+                <Input 
+                  onChange={(e) => setAmount(Number(e.target.value))}
+                  type="number" 
+                  defaultValue="0" 
+                  className="h-14 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#2929ff97]"
+                />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="buy">Buy</TabsTrigger>
+            <TabsTrigger value="sell">Sell</TabsTrigger>
+          </TabsList>
+          <div className="bg-[#ffffff] p-3 rounded-xl space-y-2">
+            <p className="text-[#000000] text-[14px]">
+              bonding curve progress: {progressPercentage}%
+            </p>
+            <div className="h-8 bg-[#f2f2f2] rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-[#00ff48] rounded-full transition-all duration-300 ease-in-out"
+                style={{ width: `${progressPercentage}%` }}
+              />
             </div>
-          </Tabs>
-        )}
-        <Button 
-          onClick={handleBuySell}
-          className={`
-            ml-[14px] items-center w-[90%] h-12 mt-2 mb-[10px] rounded-[20px] 
-            ${isSuccess 
-              ? "bg-green-500 hover:bg-green-600 text-white" 
-              : amount > 0 
-                ? "text-white bg-black" 
-                : "bg-[#F3F3F3] hover:bg-[#E5E5E5] text-[#8F8F8F]"
-            }
-            transition-all duration-300 ease-in-out
-          `}
-          variant="ghost"
-          disabled={amount <= 0 || isLoading}
-        >
-          {isLoading ? 'Processing...' : 
-           isSuccess ? 'Purchase Successful!' :
-           article.launched 
-            ? `${activeTab === 'buy' ? 'Buy' : 'Sell'} ${article.symbol}`
-            : `Purchase ${activePosition}`
-          }
-          {isSuccess && (
-            <span className="ml-2 animate-ping">🎉</span>
-          )}
-        </Button>
-
-        {article.launched && ethers.BigNumber.from(balance).gt(0) && (
-          <Button 
-            onClick={handleClaim}
-            className="ml-[14px] w-[90%] h-8 rounded-[10px] bg-red-500 hover:bg-red-600 text-white animate-pulse"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Processing...' : 'Claim Tokens'}
-          </Button>
-        )}
-      </div>
+            <p className="text-sm font-thin text-[#6b6b6b]">
+              {ethers.utils.formatEther(article?.totalRaised || '0')} ETH raised out of 1.5 ETH threshold
+            </p>
+            <div className="space-y-2">
+              <Label className="text-base text-[14px] font-normal text-black">amount {activeTab === 'buy' ? 'eth' : article?.symbol}</Label>
+              <Input 
+                onChange={(e) => setAmount(Number(e.target.value))}
+                type="number" 
+                defaultValue="0" 
+                className="h-14 rounded-full mt-0 text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 focus-visible:border-[#E5E5E5]"
+              />
+            </div>
+          </div>
+        </Tabs>
+      )}
       
-      <div className="absolute bottom-[-40px] left-2 right-2 flex items-center justify-between text-[12px] font-thin text-gray-500">
-        <span className="flex-1">ETH Balance: {parseFloat(ethBalance).toFixed(3)} ETH</span>
-        {article.launched && (
-          <>
-            <span className="flex-1">{`${article.symbol} (positive)`}: {parseFloat(positiveTokenBalance).toFixed(3)}</span>
-            <span className="flex-1">{`${article.symbol} (negative)`}: {parseFloat(negativeTokenBalance).toFixed(3)}</span>
-          </>
+      <Button 
+        onClick={handleBuySell}
+        className={`
+          ml-[14px] items-center w-[90%] h-12 mt-2 mb-[10px] rounded-[20px] 
+          ${isSuccess 
+            ? "bg-green-500 hover:bg-green-600 text-white" 
+            : amount > 0 
+              ? "text-white bg-black" 
+              : "bg-[#F3F3F3] hover:bg-[#E5E5E5] text-[#8F8F8F]"
+          }
+          transition-all duration-300 ease-in-out
+        `}
+        variant="ghost"
+        disabled={amount <= 0 || isLoading}
+      >
+        {isLoading ? 'Processing...' : 
+         isSuccess ? 'Purchase Successful!' :
+         article?.launched 
+          ? `${activeTab === 'buy' ? 'Buy' : 'Sell'} ${article.symbol}`
+          : `Purchase ${activePosition}`
+        }
+        {isSuccess && (
+          <span className="ml-2 animate-ping">🎉</span>
         )}
-        {!article.launched && (
-          <span className="flex-1">{ethers.utils.formatEther(balance)}</span>
-        )}
-      </div>
+      </Button>
+
+      {article?.launched && ethers.BigNumber.from(balance).gt(0) && (
+        <Button 
+          onClick={handleClaim}
+          className="ml-[14px] w-[90%] h-8 rounded-[10px] bg-red-500 hover:bg-red-600 text-white animate-pulse"
+          disabled={isLoading}
+        >
+          {isLoading ? 'Processing...' : 'Claim Tokens'}
+        </Button>
+      )}
     </div>
+    
+    <div className="absolute bottom-[-40px] left-2 right-2 flex items-center justify-between text-[12px] font-thin text-gray-500">
+      <span className="flex-1">ETH Balance: {parseFloat(ethBalance).toFixed(3)} ETH</span>
+      {article?.launched && (
+        <>
+          <span className="flex-1">{`${article.symbol} (positive)`}: {parseFloat(positiveTokenBalance).toFixed(3)}</span>
+          <span className="flex-1">{`${article.symbol} (negative)`}: {parseFloat(negativeTokenBalance).toFixed(3)}</span>
+        </>
+      )}
+      {!article?.launched && (
+        <span className="flex-1">{ethers.utils.formatEther(balance)}</span>
+      )}
+    </div>
+  </div>
   )
 }
 
