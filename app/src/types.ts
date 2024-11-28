@@ -73,7 +73,8 @@ export interface News {
     transactionHash: string;
     totalRaised: string;
     launched: boolean;
-    boon?: boolean;
+    positiveMarketcap: number;
+    negativeMarketcap: number;
 }
 
 // {

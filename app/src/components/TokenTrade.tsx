@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import AdvancedTradingChart from "@/components/ui/Chart"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { UniswapV2Service } from "@/lib/UniswapRouter"
+import { calcMarketcap, UniswapV2Service } from "@/lib/UniswapRouter"
 import saleArtifact from "../EtherfunSale.json"
 import factoryArtifact from "../EtherFunFactory.json"
 import { useRouter } from 'next/router'
@@ -146,6 +146,8 @@ export default function TokenTrade() {
   const [balance, setBalance] = useState('0')
   const [positiveTokenBalance, setPositiveTokenBalance] = useState('0')
   const [negativeTokenBalance, setNegativeTokenBalance] = useState('0')
+  const [positiveMarketcap, setPositiveMarketcap] = useState(0)
+  const [negativeMarketcap, setNegativeMarketcap] = useState(0)
 
   const { toast } = useToast();
   const router = useRouter();
@@ -192,8 +194,8 @@ export default function TokenTrade() {
         totalRaised: totalRaisedBN.toString(),
         launched,
         balance,
-        positiveToken,
-        negativeToken,
+        positiveToken: _positiveToken,
+        negativeToken: _negativeToken,
       })
     } catch (error) {
       console.error("Error fetching article data:", error)
@@ -226,14 +228,22 @@ export default function TokenTrade() {
           ["function balanceOf(address) view returns (uint256)"],
           provider
         )
-
-        const [_positiveBalance, _negativeBalance] = await Promise.all([
+        const [_positiveBalance, _negativeBalance, _positiveMarketcap, _negativeMarketcap] = await Promise.all([
           erc20Positive.balanceOf(walletAddress),
-          erc20Negative.balanceOf(walletAddress)
+          erc20Negative.balanceOf(walletAddress),
+          calcMarketcap(positiveToken, provider),
+          calcMarketcap(negativeToken, provider)
         ])
+
+        console.log("TokenTrade.tsx: _positiveBalance", _positiveBalance)
+        console.log("TokenTrade.tsx: _negativeBalance", _negativeBalance)
+        console.log("TokenTrade.tsx: _positiveMarketcap", _positiveMarketcap)
+        console.log("TokenTrade.tsx: _negativeMarketcap", _negativeMarketcap)
 
         setPositiveTokenBalance(ethers.utils.formatEther(_positiveBalance))
         setNegativeTokenBalance(ethers.utils.formatEther(_negativeBalance))
+        setPositiveMarketcap(_positiveMarketcap)
+        setNegativeMarketcap(_negativeMarketcap)
       }
     } catch (error) {
       console.error("Error fetching wallet data:", error)
@@ -253,6 +263,14 @@ export default function TokenTrade() {
   }, [wallet, article, fetchWalletData])
 
   const handleBuySell = async () => {
+    console.log("TokenTrade.tsx: handleBuySell", article?.launched)
+    console.log("TokenTrade.tsx: activeTab", activeTab)
+    console.log("TokenTrade.tsx: activePosition", activePosition)
+    console.log("TokenTrade.tsx: amount", amount)
+    console.log("TokenTrade.tsx: wallet", wallet)
+    console.log("TokenTrade.tsx: article", article?.positiveToken)
+    console.log("TokenTrade.tsx: article", article?.negativeToken)
+    console.log("TokenTrade.tsx: article", article ? article.address : "no address")
     if (!article?.address || !amount || !wallet) return
 
     setIsLoading(true)
@@ -310,49 +328,53 @@ export default function TokenTrade() {
 
   if (!article) return null
 
+  const totalMarketcap = positiveMarketcap + negativeMarketcap
+  const positivePercentage = totalMarketcap > 0 ? (positiveMarketcap / totalMarketcap) * 100 : 50
+  const negativePercentage = 100 - positivePercentage
+
   return (
     <div className="bg-white ml-[20px] flex flex-col shadow-[0px_4px_36px_0px_rgba(0,0,0,0.09)] p-4 rounded-[20px] space-y-6 w-[30%] h-[45%] max-w-[550px] relative">
-    <div className="relative w-full max-h-[545px] aspect-[16/9] border border-[#cdcdcd] rounded-[20px] overflow-hidden" >
-      <div className="absolute inset-0 w-full h-full">
-        <AdvancedTradingChart />
+      <div className="relative w-full max-h-[545px] aspect-[16/9] border border-[#cdcdcd] rounded-[20px] overflow-hidden" >
+        <div className="absolute inset-0 w-full h-full">
+          <AdvancedTradingChart />
+        </div>
       </div>
-    </div>
-    <div className="space-y-2 relative z-10">
-      {article?.launched ? (
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="flex items-center justify-between mb-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="buy">Buy</TabsTrigger>
-              <TabsTrigger value="sell">Sell</TabsTrigger>
-            </TabsList>
-          </div>
-          
-          <TabsContent value="buy" className="space-y-4">
-            <Tabs defaultValue="positive" onValueChange={(value) => setActivePosition(value as 'positive' | 'negative')}>
-              <TabsList className="w-full mb-2">
-                <TabsTrigger className="flex-1 border-[#ff24247e] text-[10px]" value="positive">Positive</TabsTrigger>
+      <div className="space-y-2 relative z-10">
+        {article?.launched ? (
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <div className="flex items-center justify-between mb-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="buy">Buy</TabsTrigger>
+                <TabsTrigger value="sell">Sell</TabsTrigger>
+              </TabsList>
+            </div>
+            
+            <TabsContent value="buy" className="space-y-4">
+              <Tabs defaultValue="positive" onValueChange={(value) => setActivePosition(value as 'positive' | 'negative')}>
+                <TabsList className="w-full mb-2">
+                  <TabsTrigger className="flex-1 border-[#ff24247e] text-[10px]" value="positive">Positive</TabsTrigger>
                 <TabsTrigger className="flex-1 border-[#2929ff97] text-[10px]" value="negative">Negative</TabsTrigger>
               </TabsList>
               <div className="mb-4">
-                <Label className="text-xs text-gray-500 mb-1 block">Positive/Negative Ratio</Label>
+                <Label className="text-xs text-gray-500 mb-1 block">Positive/Negative Market Cap Ratio</Label>
                 <div className="flex items-center">
                   <div className="flex-grow h-4 bg-gray-200 rounded-full overflow-hidden">
                     <div className="flex h-full">
                       <div
                         className="h-full bg-red-500 transition-all duration-300 ease-in-out"
-                        style={{ width: '70%' }}
+                        style={{ width: `${positivePercentage}%` }}
                         role="progressbar"
-                        aria-valuenow={70}
+                        aria-valuenow={positivePercentage}
                         aria-valuemin={0}
                         aria-valuemax={100}
                       ></div>
                       <div
                         className="h-full bg-blue-500 transition-all duration-300 ease-in-out"
-                        style={{ width: '30%' }}
+                        style={{ width: `${negativePercentage}%` }}
                       ></div>
                     </div>
                   </div>
-                  <span className="text-xs ml-2">70/30</span>
+                  <span className="text-xs ml-2">{`${positivePercentage.toFixed(1)}/${negativePercentage.toFixed(1)}`}</span>
                 </div>
               </div>
               <TabsContent value="positive">
@@ -379,29 +401,28 @@ export default function TokenTrade() {
           <TabsContent value="sell" className="space-y-4">
             <Tabs defaultValue="positive" onValueChange={(value) => setActivePosition(value as 'positive' | 'negative')}>
               <TabsList className="w-full mb-2">
-                <TabsTrigger className="flex-1 border-[#ff24247e] text-[10px]" value="positive">Positive</TabsTrigger>
                 <TabsTrigger className="flex-1 border-[#2929ff97] text-[10px]" value="negative">Negative</TabsTrigger>
               </TabsList>
               <div className="mb-4">
-                <Label className="text-xs text-gray-500 mb-1 block">Positive/Negative Ratio</Label>
+                <Label className="text-xs text-gray-500 mb-1 block">Positive/Negative Market Cap Ratio</Label>
                 <div className="flex items-center">
                   <div className="flex-grow h-4 bg-gray-200 rounded-full overflow-hidden">
                     <div className="flex h-full">
                       <div
                         className="h-full bg-red-500 transition-all duration-300 ease-in-out"
-                        style={{ width: '70%' }}
+                        style={{ width: `${positivePercentage}%` }}
                         role="progressbar"
-                        aria-valuenow={70}
+                        aria-valuenow={positivePercentage}
                         aria-valuemin={0}
                         aria-valuemax={100}
                       ></div>
                       <div
                         className="h-full bg-blue-500 transition-all duration-300 ease-in-out"
-                        style={{ width: '30%' }}
+                        style={{ width: `${negativePercentage}%` }}
                       ></div>
                     </div>
                   </div>
-                  <span className="text-xs ml-2">70/30</span>
+                  <span className="text-xs ml-2">{`${positivePercentage.toFixed(1)}/${negativePercentage.toFixed(1)}`}</span>
                 </div>
               </div>
               <TabsContent value="positive">

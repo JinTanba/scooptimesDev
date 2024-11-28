@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Search, Send, MessageCircle, Share2, Heart, Coins, ChevronUp, ChevronDown, X } from 'lucide-react'
+import { Search, Send, MessageCircle, Share2, Heart, Coins, ChevronUp, ChevronDown, X, Award } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { IBM_Plex_Serif, IBM_Plex_Sans } from "next/font/google"
 import { Input } from "@/components/ui/input"
@@ -14,12 +13,7 @@ import { useSignerStore } from "@/lib/walletConnector"
 import { useRouter } from "next/router"
 import { ethers } from "ethers"
 import { Comment } from "@/types"
-import { createClient } from '@supabase/supabase-js'
 import { Textarea } from "@/components/ui/textarea"
-
-const supabaseUrl = "https://lipbpiidmsjeuqemorzv.supabase.co"
-const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcGJwaWlkbXNqZXVxZW1vcnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE5MjE2MDksImV4cCI6MjA0NzQ5NzYwOX0.9u0nQ_2W99oFAfUMBp8KMyrQLfFkko55mgaV7AygzFU"
-const supabase = createClient(supabaseUrl, anonKey);
 
 const ibmPlexSerif = IBM_Plex_Serif({
   weight: ['400', '500', '600', '700'],
@@ -52,50 +46,25 @@ async function sendComment({content, wallet, parentId, newsAddress}: {content: s
   });
 }
 
-interface CommentNode extends Comment {
-  replies: CommentNode[];
-}
-
-function buildCommentTree(comments: Comment[]): CommentNode[] {
-  const commentMap = new Map<number, CommentNode>();
-  const roots: CommentNode[] = [];
-
-  comments.forEach(comment => {
-    commentMap.set(Number(comment.id)!, {
-      ...comment,
-      replies: []
-    });
-  });
-
-  comments.forEach(comment => {
-    const node = commentMap.get(Number(comment.id)!);
-    if (node) {
-      if (!comment.parentId) {
-        roots.push(node);
-      } else {
-        const parentNode = commentMap.get(Number(comment.parentId));
-        if (parentNode) {
-          parentNode.replies.push(node);
-        }
-      }
-    }
-  });
-
-  console.log(roots)
-
-  return roots;
-}
 function WriteComment({ parentId, newsAddress, onCommentSent }: { parentId: string, newsAddress: string, onCommentSent: () => void }) {
   const [content, setContent] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const wallet = useSignerStore(state => state.signer);
 
   const handleSendComment = async () => {
     if (wallet && content.trim()) {
-      await sendComment({content, wallet, parentId, newsAddress});
-      setContent("");
-      setIsExpanded(false);
-      onCommentSent();
+      setIsSubmitting(true);
+      try {
+        await sendComment({content, wallet, parentId, newsAddress});
+        setContent("");
+        setIsExpanded(false);
+        onCommentSent();
+      } catch (error) {
+        console.error("Error sending comment:", error);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -115,6 +84,7 @@ function WriteComment({ parentId, newsAddress, onCommentSent }: { parentId: stri
           className={`w-full px-4 rounded-[22px] border border-[#BFBFBF] bg-white transition-all duration-300 ease-in-out resize-none ${
             isExpanded ? 'h-32 pb-14' : 'h-[47px] py-3'
           } ${ibmPlexSans.className}`}
+          disabled={isSubmitting}
         />
         {isExpanded && wallet && (
           <div className="absolute right-3 bottom-3 flex items-center gap-2">
@@ -122,14 +92,16 @@ function WriteComment({ parentId, newsAddress, onCommentSent }: { parentId: stri
               variant="ghost"
               onClick={handleClose}
               className="text-gray-500 hover:text-gray-700 px-4 h-8 rounded-full"
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
             <Button
               onClick={handleSendComment}
               className="bg-purple-600 hover:bg-purple-700 text-white px-4 h-8 rounded-full"
+              disabled={isSubmitting}
             >
-              Comment
+              {isSubmitting ? 'Sending...' : 'Comment'}
             </Button>
           </div>
         )}
@@ -138,105 +110,167 @@ function WriteComment({ parentId, newsAddress, onCommentSent }: { parentId: stri
   )
 }
 
-
-function CommentThread({ comment, newsAddress, onCommentSent, depth = 0 }: { 
-  comment: CommentNode; 
-  newsAddress: string; 
-  onCommentSent: () => void;
-  depth?: number;
-}) {
-  const [showReplyForm, setShowReplyForm] = useState(false);
-  const [likeCount, setLikeCount] = useState(comment.likeCount || 0);
-  const type = "PoS"
-  const isTop = true
+function CommentThread({ comment, newsAddress, onCommentSent, depth = 0 }: { comment: CommentNode, newsAddress: string, onCommentSent: () => void, depth: number }) {
+  const [showReplyForm, setShowReplyForm] = useState(false)
+  const [likeCount, setLikeCount] = useState(comment.likeCount || 0)
   const formattedAddress = `${comment.userAddress.slice(0, 6)}....${comment.userAddress.slice(-4)}`
-  const badgeColor = type === 'PoS' ? 'bg-red-500' : 'bg-blue-500'
-  const balanceBadgeColor = type === 'PoS' ? 'bg-red-100 text-red-500' : 'bg-blue-100 text-blue-500'
-  const balance = 1000
+  
+  const getDisplayProperties = () => {
+    const positiveAmount = Number(comment.balance.positiveBalance || 0)
+    const negativeAmount = Number(comment.balance.negativeBalance || 0)
+    const saleAmount = Number(comment.balance.saleBalance || 0)
+
+    if (positiveAmount > 0 || negativeAmount > 0) {
+      if (positiveAmount > negativeAmount) {
+        return { 
+          color: 'bg-red-500', 
+          type: 'Positive', 
+          show: true,
+          balance: positiveAmount,
+          balanceColor: 'bg-red-100 text-red-500'
+        }
+      } else {
+        return { 
+          color: 'bg-blue-500', 
+          type: 'Negative', 
+          show: true,
+          balance: negativeAmount,
+          balanceColor: 'bg-blue-100 text-blue-500'
+        }
+      }
+    } else if (saleAmount > 0) {
+      return { 
+        color: 'bg-black', 
+        type: 'Holder', 
+        show: true,
+        balance: saleAmount,
+        balanceColor: 'bg-gray-100 text-gray-500'
+      }
+    }
+    return { 
+      color: '', 
+      type: '', 
+      show: false,
+      balance: 0,
+      balanceColor: ''
+    }
+  }
+
+  const { color, type, show, balance, balanceColor } = getDisplayProperties()
 
   const handleLike = () => {
-    setLikeCount(prevCount => prevCount + 1);
-  };
+    setLikeCount(prevCount => prevCount + 1)
+  }
 
   const handleShare = () => {
-    console.log('Share comment:', comment.id);
-  };
+    console.log('Share comment:', comment.id)
+  }
 
   return (
-    <div className="group mb-6 mt-8">
-      <div className="flex gap-4">
-        <div className="flex-shrink-0 relative">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src="https://pbs.twimg.com/media/EmNlJLpU4AEtZo7?format=png&name=900x900" />
-            <AvatarFallback>UN</AvatarFallback>
-          </Avatar>
-          
-          {comment.replies.length > 0 && (
-            <div className="absolute left-5 top-10 bottom-0 w-px bg-gray-200 group-hover:bg-gray-300" />
-          )}
-        </div>
+    <div className={cn(
+      "relative",
+      depth > 0 && "pl-[60px] mt-6"
+    )}>
+      {depth > 0 && (
+        <div 
+          className="absolute left-[30px] top-0 bottom-0 w-[2px] bg-gray-200"
+          style={{
+            content: '""',
+            top: '-24px',
+          }}
+        />
+      )}
+      
+      <div className="relative flex gap-4 pt-4">
+        <Avatar className="h-10 w-10 flex-shrink-0">
+          <AvatarImage src="https://pbs.twimg.com/media/EmNlJLpU4AEtZo7?format=png&name=900x900" />
+          <AvatarFallback>UN</AvatarFallback>
+        </Avatar>
         
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span className={`text-sm ${ibmPlexSans.className}`}>{formattedAddress}</span>
-            {isTop && (
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <span className={cn(
+              "text-sm font-medium text-gray-900",
+              ibmPlexSans.className
+            )}>
+              {formattedAddress}
+            </span>
+            {show && (
               <Badge 
                 variant="secondary" 
-                className={cn("rounded-full px-2 py-0.5 text-white text-xs", badgeColor)}
+                className={cn("rounded-full px-2 py-0.5 text-white text-xs", color)}
               >
                 {type}
               </Badge>
             )}
+            <span className="text-sm text-gray-500">•</span>
+            <span className="text-sm text-gray-500">4h ago</span>
           </div>
-          <p className={`mt-1 text-[13px] font-normal text-[#424242] ${ibmPlexSans.className}`}>
+          
+          <p className={cn(
+            "mt-2 text-[15px] text-gray-900 whitespace-pre-wrap break-words",
+            ibmPlexSans.className
+          )}>
             {comment.content}
           </p>
-          <div className="mt-2 flex items-center gap-1">
-            <Badge 
-              variant="secondary" 
-              className={cn(
-                "rounded-full px-2 py-0.5 text-xs",
-                balanceBadgeColor
-              )}
-            >
-              balance: {balance.toLocaleString()}
-            </Badge>
+          
+          <div className="mt-3 flex items-center gap-3 text-gray-500">
+            {show && (
+              <Badge 
+                variant="secondary" 
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-xs mr-2",
+                  balanceColor
+                )}
+              >
+                balance: {balance.toLocaleString()}
+              </Badge>
+            )}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowReplyForm(!showReplyForm)}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-gray-500 hover:text-gray-700 h-8 px-2"
             >
-              <MessageCircle className="h-4 w-4 mr-1" />
+              <MessageCircle className="h-4 w-4 mr-1.5" />
               Reply
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleLike}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-gray-500 hover:text-gray-700 h-8 px-2"
             >
-              <Heart className="h-4 w-4 mr-1" />
+              <Heart className="h-4 w-4 mr-1.5" />
               {likeCount}
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleShare}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-gray-500 hover:text-gray-700 h-8 px-2"
             >
-              <Share2 className="h-4 w-4 mr-1" />
+              <Share2 className="h-4 w-4 mr-1.5" />
               Share
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-500 hover:text-gray-700 h-8 px-2"
+            >
+              <Award className="h-4 w-4 mr-1.5" />
+              Award
+            </Button>
           </div>
+
           {showReplyForm && (
             <div className="mt-4">
               <WriteComment
                 parentId={comment.id || ""}
                 newsAddress={newsAddress}
                 onCommentSent={() => {
-                  setShowReplyForm(false);
-                  onCommentSent();
+                  setShowReplyForm(false)
+                  onCommentSent()
                 }}
               />
             </div>
@@ -245,22 +279,16 @@ function CommentThread({ comment, newsAddress, onCommentSent, depth = 0 }: {
       </div>
 
       {comment.replies.length > 0 && (
-        <div className="pl-[52px] mt-2 relative">
-          <div className="absolute left-5 top-0 w-[47px] h-6">
-            <div className="absolute left-0 top-0 w-full h-full border-l-2 border-b-2 border-gray-200 rounded-bl-xl group-hover:border-gray-300" />
-          </div>
-          
-          <div className="space-y-4">
-            {comment.replies.map((reply) => (
-              <CommentThread
-                key={reply.id}
-                comment={reply}
-                newsAddress={newsAddress}
-                onCommentSent={onCommentSent}
-                depth={depth + 1}
-              />
-            ))}
-          </div>
+        <div className="mt-4">
+          {comment.replies.map((reply) => (
+            <CommentThread
+              key={reply.id}
+              comment={reply}
+              newsAddress={newsAddress}
+              onCommentSent={onCommentSent}
+              depth={depth + 1}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -287,9 +315,23 @@ function SkeletonLoader() {
   )
 }
 
-function FeaturedComment({ author, content, status }: { author: string; content: string, status: "positive" | "negative" }) {
+function FeaturedComment({ author, content, status, balance }: { 
+  author: string; 
+  content: string; 
+  status: "positive" | "negative";
+  balance: {
+    positiveBalance?: string;
+    negativeBalance?: string;
+    saleBalance?: string;
+  };
+}) {
   const badgeColor = status === "positive" ? "bg-red-500" : "bg-blue-500"
   const badgeText = status === "positive" ? "Positive" : "Negative"
+  
+  const tokenAmount = status === "positive" 
+    ? balance.positiveBalance || balance.saleBalance
+    : balance.negativeBalance || balance.saleBalance;
+
   return (
     <div className="rounded-[23px] bg-white shadow-[0px_4px_36px_0px_rgba(0,0,0,0.09)] p-3 pt-5 pb-5 mb-6 w-1/2">
       <div className="flex items-start gap-4">
@@ -305,7 +347,7 @@ function FeaturedComment({ author, content, status }: { author: string; content:
             </Badge>
             <div className="flex items-center gap-1 text-sm text-gray-500">
               <Coins className="w-4 h-4" />
-              <span className={ibmPlexSans.className}>{10000} tokens</span>
+              <span className={ibmPlexSans.className}>{tokenAmount} tokens</span>
             </div>
           </div>
           <p className={`text-[12px] text-gray-700 ${ibmPlexSans.className}`}>
@@ -317,13 +359,89 @@ function FeaturedComment({ author, content, status }: { author: string; content:
   )
 }
 
+interface Balance {
+  positiveBalance?: string;
+  negativeBalance?: string;
+  saleBalance?: string;
+}
+
+interface CommentNode extends Comment {
+  replies: CommentNode[];
+  balance: Balance;
+}
+
+function CommentTreeSkeleton() {
+  return (
+    <div className="space-y-8">
+      {Array(3).fill(null).map((_, index) => (
+        <div key={index} className="group mb-6 mt-8">
+          <div className="flex gap-4">
+            <div className="flex-shrink-0 relative">
+              <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
+              <div className="absolute left-5 top-10 bottom-0 w-px bg-gray-200" />
+            </div>
+            
+            <div className="flex-1 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse" />
+                <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse" />
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+                <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+                <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+              </div>
+            </div>
+          </div>
+
+          {/* 返信のスケルトン */}
+          <div className="pl-[52px] mt-2 relative">
+            <div className="absolute left-5 top-0 w-[47px] h-6">
+              <div className="absolute left-0 top-0 w-full h-full border-l-2 border-b-2 border-gray-200 rounded-bl-xl" />
+            </div>
+            
+            <div className="space-y-4">
+              {Array(2).fill(null).map((_, replyIndex) => (
+                <div key={replyIndex} className="flex gap-4">
+                  <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
+                  <div className="flex-1 space-y-3">
+                    <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse" />
+                    <div className="flex gap-2">
+                      <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+                      <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Page() {
   const router = useRouter();
   const { address } = router.query;
   const [metadata, setMetadata] = useState<SaleMetadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [commentTree, setCommentTree] = useState<CommentNode[]>([]);
+  const [topComments, setTopComments] = useState<{
+    topPositiveComment: CommentNode | null;
+    topNegativeComment: CommentNode | null;
+  }>({
+    topPositiveComment: null,
+    topNegativeComment: null
+  });
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [isAddingComment, setIsAddingComment] = useState(false); // Added state variable
 
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
@@ -334,21 +452,24 @@ export default function Page() {
     return text.slice(0, maxLength) + '...';
   };
 
-
-  const fetchComments = async () => {
-    const { data, error } = await supabase
-      .from('comment')
-      .select()
-      .eq('newsAddress', address as string)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Error fetching comments:', error)
-      return
-    }
+  const fetchComments = async (isAdding = false) => {    // Updated fetchComments function
+    if (isLoadingComments && !isAdding) return;
     
-    const tree = buildCommentTree(data || []);
-    setCommentTree(tree);
+    try {
+      if (!isAdding) setIsLoadingComments(true);
+      const response = await fetch(`/api/getCommentTree?address=${address}`);
+      const result = await response.json();
+      setCommentTree(result.tree);
+      setTopComments({
+        topPositiveComment: result.topPositiveComment,
+        topNegativeComment: result.topNegativeComment
+      });
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+    } finally {
+      setIsLoadingComments(false);
+      setIsAddingComment(false);
+    }
   }
 
   useEffect(() => {
@@ -369,12 +490,13 @@ export default function Page() {
 
   useEffect(() => {
     if (address) {
-      fetchComments()
+      fetchComments();
     }
-  }, [address])
+  }, [address]);
 
-  const handleCommentSent = () => {
-    fetchComments()
+  const handleCommentSent = () => { // Updated handleCommentSent function
+    setIsAddingComment(true);
+    fetchComments(true);
   }
   
   return (
@@ -449,44 +571,42 @@ export default function Page() {
 
           <div className="mt-8">
             <div className="mb-8 flex gap-4">
-              <FeaturedComment 
-                author="John Doe"
-                content="This is a groundbreaking piece that really captures the essence of modern music journalism. The analysis is spot-on and provides valuable insights."
-                status="positive"
-              />
-              <FeaturedComment 
-                author="Jane Smith"
-                content="Exceptional reporting that goes beyond the surface. The detailed breakdown of each track shows a deep understanding of musical evolution."
-                status="negative"
-              />
+              {topComments.topPositiveComment && (
+                <FeaturedComment 
+                  author={`${topComments.topPositiveComment.userAddress.slice(0, 6)}...${topComments.topPositiveComment.userAddress.slice(-4)}`}
+                  content={topComments.topPositiveComment.content}
+                  status="positive"
+                  balance={topComments.topPositiveComment.balance}
+                />
+              )}
+              {topComments.topNegativeComment && (
+                <FeaturedComment 
+                  author={`${topComments.topNegativeComment.userAddress.slice(0, 6)}...${topComments.topNegativeComment.userAddress.slice(-4)}`}
+                  content={topComments.topNegativeComment.content}
+                  status="negative"
+                  balance={topComments.topNegativeComment.balance}
+                />
+              )}
             </div>
 
             <WriteComment parentId={""} newsAddress={address as string} onCommentSent={handleCommentSent} />
           </div>
 
-          <div className="space-y-8 mt-6">
-            {loading ? (
-              Array(3).fill(null).map((_, index) => (
-                <div key={index} className="animate-pulse flex gap-4 w-full mt-10">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                  <div className="flex-1">
-                    <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                </div>
-              ))
+          <div className="space-y-8 mt-6"> {/* Updated comment tree rendering */}
+            {isLoadingComments && !isAddingComment ? (
+              <CommentTreeSkeleton />
             ) : (
-            <div className="w-[80%] mx-auto">
+              <div className="w-[80%] mx-auto">
                 {commentTree.map((comment) => (
-                <CommentThread
-                  key={comment.id}
-                  comment={comment}
-                  newsAddress={address as string}
-                  onCommentSent={handleCommentSent}
-                />
-              ))}
-            </div>
+                  <CommentThread
+                    key={comment.id}
+                    comment={comment}
+                    newsAddress={address as string}
+                    onCommentSent={handleCommentSent}
+                    depth={0}
+                  />
+                ))}
+              </div>
             )}
           </div>
         </section>

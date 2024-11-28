@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import factoryArtifact from "../../EtherFunFactory.json";
 import saleArtifact from "../../EtherfunSale.json";
 import { ethers } from "ethers";
+import { calcMarketcap } from "@/lib/UniswapRouter";
 
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c";
 const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
@@ -48,16 +49,25 @@ export default async function handler(
         const saleContract = new ethers.Contract(saleContractAddress, saleArtifact.abi, provider);
         let totalRaised = 0;
         let launched = false;
+        let positiveToken = "";
+        let negativeToken = "";
         try {
-            [totalRaised, launched] = await Promise.all([
+            [totalRaised, launched, positiveToken, negativeToken] = await Promise.all([
               saleContract.totalRaised(),
-              saleContract.launched()
+              saleContract.launched(),
+              saleContract.positiveToken(),
+              saleContract.negativeToken(),
             ]);
         } catch (error) {
             console.error('Error fetching sale data:', error);
         }
 
         console.log(totalRaised.toString(), launched);
+
+        const [positiveMarketcap, negativeMarketcap] = launched ? await Promise.all([
+          calcMarketcap(positiveToken, provider),
+            calcMarketcap(negativeToken, provider)
+          ]) : [0, 0]
 
         const _event = {
             saleContractAddress,
@@ -74,7 +84,9 @@ export default async function handler(
             transactionHash: event.transactionHash,
             totalRaised: totalRaised.toString(),
             relatedLinks,
-            launched: launched
+            launched: launched,
+            positiveMarketcap,
+            negativeMarketcap
         }
 
         console.log(_event);
