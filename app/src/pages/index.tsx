@@ -252,7 +252,7 @@ export default function Component() {
     if(_news.length > 0) {
       setTopNews([..._news].sort((a, b) => calculateMarketcap(b) - calculateMarketcap(a))[0])
       setIsLoading(false)
-      setNews(_news.reverse())
+      setNews(_news)
     }
   },[_news])
 
@@ -260,7 +260,7 @@ export default function Component() {
     if(isLaunched) {
       setNews([...news].filter(item => item.launched))
     } else {
-      setNews(_news.reverse())
+      setNews(_news)
     }
   },[isLaunched])
 
