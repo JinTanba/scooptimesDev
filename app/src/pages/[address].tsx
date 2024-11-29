@@ -14,6 +14,7 @@ import { useRouter } from "next/router"
 import { ethers } from "ethers"
 import { Comment } from "@/types"
 import { Textarea } from "@/components/ui/textarea"
+import { GradationIcon } from "@/components/GradationIcon"
 
 const ibmPlexSerif = IBM_Plex_Serif({
   weight: ['400', '500', '600', '700'],
@@ -182,10 +183,9 @@ function CommentThread({ comment, newsAddress, onCommentSent, depth = 0 }: { com
       )}
       
       <div className="relative flex gap-4 pt-4">
-        <Avatar className="h-10 w-10 flex-shrink-0">
-          <AvatarImage src="https://pbs.twimg.com/media/EmNlJLpU4AEtZo7?format=png&name=900x900" />
-          <AvatarFallback>UN</AvatarFallback>
-        </Avatar>
+        <div className="h-10 w-10 flex-shrink-0">
+          <GradationIcon address={comment.userAddress} size={40} />
+        </div>
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -335,10 +335,9 @@ function FeaturedComment({ author, content, status, balance }: {
   return (
     <div className="rounded-[23px] bg-white shadow-[0px_4px_36px_0px_rgba(0,0,0,0.09)] p-3 pt-5 pb-5 mb-6 w-1/2">
       <div className="flex items-start gap-4">
-        <Avatar className="h-12 w-12">
-          <AvatarImage src="/placeholder.svg" alt={author} />
-          <AvatarFallback>{author[0]}</AvatarFallback>
-        </Avatar>
+        <div className="h-12 w-12">
+          <GradationIcon address={author} size={48} />
+        </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className={`font-medium ${ibmPlexSans.className}`}>{author}</span>
@@ -377,7 +376,7 @@ function CommentTreeSkeleton() {
         <div key={index} className="group mb-6 mt-8">
           <div className="flex gap-4">
             <div className="flex-shrink-0 relative">
-              <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
+              <div className="w-10 h-10 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full animate-pulse" />
               <div className="absolute left-5 top-10 bottom-0 w-px bg-gray-200" />
             </div>
             
@@ -398,32 +397,31 @@ function CommentTreeSkeleton() {
             </div>
           </div>
 
-          {/* 返信のスケルトン */}
           <div className="pl-[52px] mt-2 relative">
-            <div className="absolute left-5 top-0 w-[47px] h-6">
-              <div className="absolute left-0 top-0 w-full h-full border-l-2 border-b-2 border-gray-200 rounded-bl-xl" />
-            </div>
-            
-            <div className="space-y-4">
-              {Array(2).fill(null).map((_, replyIndex) => (
-                <div key={replyIndex} className="flex gap-4">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
-                  <div className="flex-1 space-y-3">
-                    <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
-                    <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse" />
-                    <div className="flex gap-2">
-                      <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
-                      <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+  <div className="absolute left-5 top-0 w-[47px] h-6">
+    <div className="absolute left-0 top-0 w-full h-full border-l-2 border-b-2 border-gray-200 rounded-bl-xl" />
+  </div>
+  
+  <div className="space-y-4">
+    {Array(2).fill(null).map((_, replyIndex) => (
+      <div key={replyIndex} className="flex gap-4">
+        <div className="w-10 h-10 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full animate-pulse" />
+        <div className="flex-1 space-y-3">
+          <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+          <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse" />
+          <div className="flex gap-2">
+            <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
           </div>
         </div>
-      ))}
-    </div>
-  );
+      </div>
+    ))}
+  </div>
+</div>
+      </div>
+    ))}
+  </div>
+);
 }
 
 export default function Page() {
@@ -441,7 +439,7 @@ export default function Page() {
   });
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
-  const [isAddingComment, setIsAddingComment] = useState(false); // Added state variable
+  const [isAddingComment, setIsAddingComment] = useState(false);
 
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
@@ -452,7 +450,7 @@ export default function Page() {
     return text.slice(0, maxLength) + '...';
   };
 
-  const fetchComments = async (isAdding = false) => {    // Updated fetchComments function
+  const fetchComments = async (isAdding = false) => {
     if (isLoadingComments && !isAdding) return;
     
     try {
@@ -494,7 +492,7 @@ export default function Page() {
     }
   }, [address]);
 
-  const handleCommentSent = () => { // Updated handleCommentSent function
+  const handleCommentSent = () => {
     setIsAddingComment(true);
     fetchComments(true);
   }
@@ -592,7 +590,7 @@ export default function Page() {
             <WriteComment parentId={""} newsAddress={address as string} onCommentSent={handleCommentSent} />
           </div>
 
-          <div className="space-y-8 mt-6"> {/* Updated comment tree rendering */}
+          <div className="space-y-8 mt-6">
             {isLoadingComments && !isAddingComment ? (
               <CommentTreeSkeleton />
             ) : (

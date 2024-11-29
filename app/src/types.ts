@@ -123,3 +123,16 @@ export interface DisplayData {
 }
 
 
+export interface HistoricalData {
+    timestamp: number;
+    totalRaised: string;
+  }
+  
+export interface CandleData {
+    time: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+  }
+  

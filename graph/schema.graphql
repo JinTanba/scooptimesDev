@@ -1,0 +1,70 @@
+type Claimed @entity(immutable: true) {
+  id: Bytes!
+  saleContractAddress: Bytes! # address
+  claimant: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type MetaUpdated @entity(immutable: true) {
+  id: Bytes!
+  saleContractAddress: Bytes! # address
+  logoUrl: String! # string
+  websiteUrl: String! # string
+  twitterUrl: String! # string
+  telegramUrl: String! # string
+  description: String! # string
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type SaleCreated @entity(immutable: true) {
+  id: Bytes!
+  saleContractAddress: Bytes! # address
+  creator: Bytes! # address
+  name: String! # string
+  symbol: String! # string
+  saleGoal: BigInt! # uint256
+  logoUrl: String! # string
+  websiteUrl: String! # string
+  twitterUrl: String! # string
+  telegramUrl: String! # string
+  description: String! # string
+  relatedLinks: [String!]! # string[]
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type SaleLaunched @entity(immutable: true) {
+  id: Bytes!
+  saleContractAddress: Bytes! # address
+  launcher: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type TokensBought @entity(immutable: true) {
+  id: Bytes!
+  saleContractAddress: Bytes! # address
+  buyer: Bytes! # address
+  totalRaised: BigInt! # uint256
+  tokenBalance: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type TokensSold @entity(immutable: true) {
+  id: Bytes!
+  saleContractAddress: Bytes! # address
+  seller: Bytes! # address
+  totalRaised: BigInt! # uint256
+  tokenBalance: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}

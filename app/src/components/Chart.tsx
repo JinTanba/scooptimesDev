@@ -1,6 +1,10 @@
-// @ts-nocheck
+//@ts-nocheck
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts';
+
+interface Props {
+  contractAddress: string;
+}
 
 const themes = {
   light: {
@@ -69,7 +73,7 @@ const themes = {
   },
 };
 
-const ThemeSwitchableChart: React.FC = () => {
+const ThemeSwitchableChart: React.FC<Props> = ({ contractAddress }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
@@ -78,15 +82,12 @@ const ThemeSwitchableChart: React.FC = () => {
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    // チャートの初期化
-    // @ts-ignore
     chart.current = createChart(chartContainerRef.current, {
       width: 800,
       height: 300,
       ...themes[isDarkMode ? 'dark' : 'light'],
     });
 
-    // ローソク足シリーズの追加
     series.current = chart.current.addCandlestickSeries({
       upColor: '#26a69a',
       downColor: '#ef5350',
@@ -95,20 +96,26 @@ const ThemeSwitchableChart: React.FC = () => {
       wickDownColor: '#ef5350',
     });
 
-    // サンプルデータ
-    series.current.setData([
-      { time: '2024-01-01', open: 0.000003000, high: 0.000003418, low: 0.000003349, close: 0.000003349 },
-      { time: '2024-01-02', open: 0.000003349, high: 0.000003500, low: 0.000003000, close: 0.000003349 },
-      { time: '2024-01-03', open: 0.000003349, high: 0.000003600, low: 0.000003200, close: 0.000003400 },
-      { time: '2024-01-04', open: 0.000003400, high: 0.000003700, low: 0.000003300, close: 0.000003600 },
-      { time: '2024-01-05', open: 0.000003600, high: 0.000003800, low: 0.000003500, close: 0.000003700 },
-    ]);
+    const fetchData = async () => {
+      try {
+        const response = await fetch(`/api/getChartData?address=${contractAddress}`);
+        const data: CandleData[] = await response.json();
+        console.log('data-------------------------------\n\n', data);
+        if (series.current && data.length > 0) {
+          series.current.setData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch chart data:', error);
+      }
+    };
 
-    // レスポンシブ対応
+    fetchData();
+
     const handleResize = () => {
       if (chart.current && chartContainerRef.current) {
         chart.current.applyOptions({
           width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
         });
       }
     };
@@ -122,9 +129,8 @@ const ThemeSwitchableChart: React.FC = () => {
         chart.current.remove();
       }
     };
-  }, [isDarkMode]);
+  }, [isDarkMode, contractAddress]);
 
-  // テーマ切り替え時の処理
   useEffect(() => {
     if (chart.current) {
       chart.current.applyOptions(themes[isDarkMode ? 'dark' : 'light']);
@@ -132,14 +138,9 @@ const ThemeSwitchableChart: React.FC = () => {
   }, [isDarkMode]);
 
   return (
-    <>
-      <div className="w-full h-[500px] p-4">
-        <div 
-          className="w-full h-[300px]"
-          ref={chartContainerRef}
-        />
-      </div>
-    </>
+    <div className="w-full h-full p-4">
+      <div className="w-full h-full" ref={chartContainerRef} />
+    </div>
   );
 };
 
