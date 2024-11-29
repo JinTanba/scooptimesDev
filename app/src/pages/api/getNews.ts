@@ -7,7 +7,9 @@ import { calcMarketcap } from "@/lib/UniswapRouter";
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c";
 const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
 const factory = new ethers.Contract(factoryAddress, factoryArtifact.abi, provider);
-
+export const config = {
+  maxDuration: 300 // 5分のタイムアウト
+}
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse

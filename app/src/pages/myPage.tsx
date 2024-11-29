@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import factoryArtifact from "../EtherFunFactory.json"
 import Link from "next/link"
 import Image from "next/image"
-import { Search, Send, MessageCircle } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
