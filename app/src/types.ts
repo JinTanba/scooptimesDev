@@ -136,3 +136,26 @@ export interface CandleData {
     close: number;
   }
   
+
+
+export interface SaleData {
+    id: number;                    // int8
+    created_at: string;           // timestamptz
+    saleContractAddress: string;  // text
+    creator: string;              // text
+    name: string;                 // text
+    symbol: string;               // text
+    logoUrl: string;              // text
+    websiteUrl: string;          // text
+    twitterUrl: string;          // text
+    telegramUrl: string;         // text
+    description: string;         // text
+    blockNumber?: string;         // text
+    transactionHash: string;     // text
+    totalRaised: string;         // text
+    launched: boolean;           // bool
+    positiveToken: string;       // text
+    negativeToken: string;       // text
+    positiveMarketcap?: number;
+    negativeMarketcap?: number;
+}

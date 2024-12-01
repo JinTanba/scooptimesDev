@@ -13,8 +13,8 @@ export const config = {
   },
 };
 
-const supabaseUrl = "https://lipbpiidmsjeuqemorzv.supabase.co"
-const supabaseServiceRoleKey ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcGJwaWlkbXNqZXVxZW1vcnp2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczMTkyMTYwOSwiZXhwIjoyMDQ3NDk3NjA5fQ.OmyjfLjmZA_FDWO5R54G5-UFgtmGr64Nj4Wf_CCZ63o"
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
   throw new Error('Supabase URL or Service Role Key is not set');

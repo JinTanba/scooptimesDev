@@ -13,6 +13,8 @@ import { useRouter } from 'next/router'
 import useMetaMaskWallet, { useSignerStore } from '@/lib/walletConnector'
 import { cn } from "@/lib/utils"
 import { Progress } from '@radix-ui/react-progress'
+import { useNewsStore } from '@/lib/NewsState'
+import { SaleData } from '@/types'
 
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c"
 const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65")
@@ -66,7 +68,7 @@ function TokenTradeSkeleton() {
   )
 }
 
-interface ArticleDisplay {
+interface currentNewsDisplay {
   address: string
   name: string
   symbol: string
@@ -133,7 +135,7 @@ async function claimTokens(saleAddress: string, wallet: ethers.Signer) {
 export default function TokenTrade() {
   const {connectWallet} = useMetaMaskWallet(false);
   const wallet = useSignerStore(state => state.signer);
-  const [article, setArticle] = useState<ArticleDisplay | null>(null)
+  const news = useNewsStore((state) => state.news)
   const [progressPercentage, setProgressPercentage] = useState(0)
   const [amount, setAmount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -141,7 +143,7 @@ export default function TokenTrade() {
   const [activeTab, setActiveTab] = useState('buy')
   const [activePosition, setActivePosition] = useState<'positive' | 'negative'>('positive')
   const [ethBalance, setEthBalance] = useState('0')
-  
+  const [currentNews, setCurrentNews] = useState<SaleData | null>(null)
   const [positiveToken, setPositiveToken] = useState('')
   const [negativeToken, setNegativeToken] = useState('')
   const [balance, setBalance] = useState('0')
@@ -162,51 +164,22 @@ export default function TokenTrade() {
     if (!address) return;
 
     try {
-      const factoryContract = new ethers.Contract(factoryAddress, factoryArtifact.abi, provider)
-      const saleContract = new ethers.Contract(address, saleArtifact.abi, provider)
-      
-      const [
-        name,
-        symbol,
-        metadata,
-        totalRaised,
-        launched,
-        _positiveToken,
-        _negativeToken,
-      ] = await Promise.all([
-        saleContract.name(),
-        saleContract.symbol(),
-        factoryContract.getSaleMetadata(address),
-        saleContract.totalRaised(),
-        saleContract.launched(),
-        saleContract.positiveToken(),
-        saleContract.negativeToken(),
-      ])
-
-      const totalRaisedBN = totalRaised ? ethers.BigNumber.from(totalRaised) : ethers.BigNumber.from(0)
+      const sale = news.find(sale => sale.saleContractAddress === address)
+      setCurrentNews(sale || null)
+      const totalRaisedBN = sale?.totalRaised ? ethers.BigNumber.from(sale.totalRaised) : ethers.BigNumber.from(0)
       const percentage = totalRaisedBN.mul(100).div(ethThreshold).toNumber()
-      
+
       setProgressPercentage(percentage)
-      setPositiveToken(_positiveToken)
-      setNegativeToken(_negativeToken)
-      setArticle({
-        address,
-        name,
-        symbol,
-        metadata,
-        totalRaised: totalRaisedBN.toString(),
-        launched,
-        balance,
-        positiveToken: _positiveToken,
-        negativeToken: _negativeToken,
-      })
+      setPositiveToken(sale?.positiveToken || "")
+      setNegativeToken(sale?.negativeToken || "")
+
     } catch (error) {
-      console.error("Error fetching article data:", error)
+      console.error("Error fetching currentNews data:", error)
     }
-  }, [address])
+  }, [address, news])
 
   const fetchWalletData = useCallback(async () => {
-    if (!address || !wallet || !article) return;
+    if (!address || !wallet || !currentNews) return;
 
     try {
       setIsMarketCapLoading(true)
@@ -248,13 +221,14 @@ export default function TokenTrade() {
         setNegativeTokenBalance(ethers.utils.formatEther(_negativeBalance))
         setPositiveMarketcap(_positiveMarketcap)
         setNegativeMarketcap(_negativeMarketcap)
+        
       }
       setIsMarketCapLoading(false)
     } catch (error) {
       console.error("Error fetching wallet data:", error)
       setIsMarketCapLoading(false)
     }
-  }, [address, wallet, article, positiveToken, negativeToken])
+  }, [address, wallet, currentNews, positiveToken, negativeToken])
 
   useEffect(() => {
     if (address) {
@@ -266,7 +240,7 @@ export default function TokenTrade() {
     if (wallet) {
       fetchWalletData()
     }
-  }, [wallet, article, fetchWalletData])
+  }, [wallet, currentNews, fetchWalletData])
 
   useEffect(() => {
     console.log("TokenTrade.tsx: activeTab", activeTab)
@@ -274,28 +248,28 @@ export default function TokenTrade() {
   }, [activeTab, activePosition])
 
   const handleBuySell = async () => {
-    console.log("TokenTrade.tsx: handleBuySell", article?.launched)
+    console.log("TokenTrade.tsx: handleBuySell", currentNews?.launched)
     console.log("TokenTrade.tsx: activeTab", activeTab)
     console.log("TokenTrade.tsx: activePosition", activePosition)
     console.log("TokenTrade.tsx: amount", amount)
     console.log("TokenTrade.tsx: wallet", wallet)
-    console.log("TokenTrade.tsx: article", article?.positiveToken)
-    console.log("TokenTrade.tsx: article", article?.negativeToken)
-    console.log("TokenTrade.tsx: article", article ? article.address : "no address")
-    if (!article?.address || !amount || !wallet) return
+    console.log("TokenTrade.tsx: currentNews", currentNews?.positiveToken)
+    console.log("TokenTrade.tsx: currentNews", currentNews?.negativeToken)
+    console.log("TokenTrade.tsx: currentNews", currentNews ? currentNews.saleContractAddress : "no address")
+    if (!currentNews?.saleContractAddress || !amount || !wallet) return
 
     setIsLoading(true)
     try {
       let txHash
-      if (article.launched) {
-        const tokenAddress = activePosition === 'positive' ? article.positiveToken : article.negativeToken
+      if (currentNews.launched) {
+        const tokenAddress = activePosition === 'positive' ? currentNews.positiveToken : currentNews.negativeToken
         txHash = activeTab === 'buy'
           ? await buyInUniswap(tokenAddress, ethers.utils.parseEther(amount.toString()), wallet)
           : await sellInUniswap(tokenAddress, ethers.utils.parseEther(amount.toString()), wallet)
       } else {
         txHash = activeTab === 'buy'
-          ? await buyToken(article.address, amount.toString(), activePosition, wallet)
-          : await sellToken(article.address, amount.toString(), wallet)
+          ? await buyToken(currentNews.saleContractAddress, amount.toString(), activePosition, wallet)
+          : await sellToken(currentNews.saleContractAddress, amount.toString(), wallet)
       }
       
       await fetchData()
@@ -314,10 +288,10 @@ export default function TokenTrade() {
   }
 
   const handleClaim = async () => {
-    if (!article?.address || !wallet) return
+    if (!currentNews?.saleContractAddress || !wallet) return
     setIsLoading(true)
     try {
-      const txHash = await claimTokens(article.address, wallet)
+      const txHash = await claimTokens(currentNews.saleContractAddress, wallet)
       await fetchData()
       toast({
         title: "Tokens Claimed Successfully",
@@ -337,7 +311,7 @@ export default function TokenTrade() {
 
   if (isLoading) return <TokenTradeSkeleton />
 
-  if (!article) return null
+  if (!currentNews) return null
 
   const totalMarketcap = positiveMarketcap + negativeMarketcap
   const positivePercentage = totalMarketcap > 0 ? (positiveMarketcap / totalMarketcap) * 100 : 50
@@ -347,11 +321,11 @@ export default function TokenTrade() {
     <div className="bg-white ml-[20px] flex flex-col shadow-[0px_4px_36px_0px_rgba(0,0,0,0.09)] p-4 rounded-[20px] space-y-6 w-[30%] h-[45%] max-w-[550px] relative">
       <div className="relative w-full max-h-[545px] aspect-[16/9] border border-[#cdcdcd] rounded-[20px] overflow-hidden" >
         <div className="absolute inset-0 w-full h-full">
-          <AdvancedTradingChart contractAddress={article.address} />
+          <AdvancedTradingChart contractAddress={currentNews?.saleContractAddress || ""} />
         </div>
       </div>
       <div className="space-y-2 relative z-10">
-        {article?.launched ? (
+        {currentNews?.launched ? (
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="flex items-center justify-between mb-4">
               <TabsList className="grid w-full grid-cols-2">
@@ -487,10 +461,10 @@ export default function TokenTrade() {
                 />
               </div>
               <p className="text-sm font-thin text-[#6b6b6b]">
-                {ethers.utils.formatEther(article?.totalRaised || '0')} ETH raised out of 1.5 ETH threshold
+                {ethers.utils.formatEther(currentNews?.totalRaised || '0')} ETH raised out of 1.5 ETH threshold
               </p>
               <div className="space-y-2">
-                <Label className="text-base text-[14px] font-normal text-black">amount {activeTab === 'buy' ? 'eth' : article?.symbol}</Label>
+                <Label className="text-base text-[14px] font-normal text-black">amount {activeTab === 'buy' ? 'eth' : currentNews?.symbol}</Label>
                 <Input 
                   onChange={(e) => setAmount(Number(e.target.value))}
                   type="number" 
@@ -520,9 +494,9 @@ export default function TokenTrade() {
           >
             {isLoading ? 'Processing...' : 
              isSuccess ? 'Purchase Successful!' :
-             article?.launched 
-              ? activeTab === 'buy' ? `pay ${amount} ETH / get ${article.symbol} (${activePosition})` : `selling ${amount} ${article.symbol} (${activePosition})`
-              : activeTab === 'buy' ? `pay ${amount} ETH / get ${article.symbol}` : `selling ${amount} ${article.symbol}`
+             currentNews?.launched 
+              ? activeTab === 'buy' ? `pay ${amount} ETH / get ${currentNews.symbol} (${activePosition})` : `selling ${amount} ${currentNews.symbol} (${activePosition})`
+              : activeTab === 'buy' ? `pay ${amount} ETH / get ${currentNews.symbol}` : `selling ${amount} ${currentNews.symbol}`
             }
             {isSuccess && (
               <span className="ml-2 animate-ping">🎉</span>
@@ -537,7 +511,7 @@ export default function TokenTrade() {
           </Button>
         )}
 
-        {article?.launched && ethers.BigNumber.from(balance).gt(0) && (
+        {currentNews?.launched && ethers.BigNumber.from(balance).gt(0) && (
           <Button 
             onClick={handleClaim}
             className="ml-[14px] w-[90%] h-8 rounded-[10px] bg-red-500 hover:bg-red-600 text-white animate-pulse"
@@ -550,13 +524,13 @@ export default function TokenTrade() {
       
       <div className="absolute bottom-[-40px] left-2 right-2 flex items-center justify-between text-[12px] font-thin text-gray-500">
         <span className="flex-1">ETH Balance: {parseFloat(ethBalance).toFixed(3)} ETH</span>
-        {article?.launched && (
+        {currentNews?.launched && (
           <>
-            <span className="flex-1">{`${article.symbol} (positive)`}: {parseFloat(positiveTokenBalance).toFixed(3)}</span>
-            <span className="flex-1">{`${article.symbol} (negative)`}: {parseFloat(negativeTokenBalance).toFixed(3)}</span>
+            <span className="flex-1">{`${currentNews.symbol} (positive)`}: {parseFloat(positiveTokenBalance).toFixed(3)}</span>
+            <span className="flex-1">{`${currentNews.symbol} (negative)`}: {parseFloat(negativeTokenBalance).toFixed(3)}</span>
           </>
         )}
-        {!article?.launched && (
+        {!currentNews?.launched && (
           <span className="flex-1">{ethers.utils.formatEther(balance)}</span>
         )}
       </div>

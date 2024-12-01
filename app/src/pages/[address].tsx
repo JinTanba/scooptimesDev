@@ -1,20 +1,19 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Search, Send, MessageCircle, Share2, Heart, Coins, ChevronUp, ChevronDown, X, Award } from 'lucide-react'
+import { Search, Send, MessageCircle, Share2, Heart, Coins, ChevronUp, ChevronDown, Award } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { IBM_Plex_Serif, IBM_Plex_Sans } from "next/font/google"
-import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import TokenTrade from "@/components/TokenTrade"
 import { useSignerStore } from "@/lib/walletConnector"
 import { useRouter } from "next/router"
 import { ethers } from "ethers"
-import { Comment } from "@/types"
+import { Comment, SaleData } from "@/types"
 import { Textarea } from "@/components/ui/textarea"
 import { GradationIcon } from "@/components/GradationIcon"
+import { useNewsStore } from "@/lib/NewsState"
 
 const ibmPlexSerif = IBM_Plex_Serif({
   weight: ['400', '500', '600', '700'],
@@ -427,7 +426,8 @@ function CommentTreeSkeleton() {
 export default function Page() {
   const router = useRouter();
   const { address } = router.query;
-  const [metadata, setMetadata] = useState<SaleMetadata | null>(null);
+  const news = useNewsStore((state) => state.news)
+  const [metadata, setMetadata] = useState<SaleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [commentTree, setCommentTree] = useState<CommentNode[]>([]);
   const [topComments, setTopComments] = useState<{
@@ -473,19 +473,13 @@ export default function Page() {
 
   useEffect(() => {
     if (address) {
-      setLoading(true);
-      fetch(`/api/getNewsDisplayData?address=${address}`)
-        .then(res => res.json())
-        .then(data => {
-          setMetadata(data);
-          setLoading(false);
-        })
-        .catch(error => {
-          console.error("🔥error", error);
-          setLoading(false);
-        });
+      const sale = news.find(sale => sale.saleContractAddress === address);
+      if (sale) {
+        setMetadata(sale)
+        setLoading(false)
+      }
     }
-  }, [address]);
+  }, [address, news]);
 
   useEffect(() => {
     if (address) {

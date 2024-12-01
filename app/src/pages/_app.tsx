@@ -23,53 +23,6 @@ const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io
 const testWallet = new ethers.Wallet(testPrivateKey, provider);
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c";
 
-type NewsAction = 
-  | { type: 'INIT_NEWS'; payload: News[] }
-  | { type: 'ADD_NEWS'; payload: News }
-  | { type: 'UPDATE_NEWS'; payload: { saleContractAddress: string; totalRaised: string } }
-  | { type: 'LAUNCH_NEWS'; payload: { saleContractAddress: string } };
-
-function newsReducer(state: News[], action: NewsAction): News[] {
-  switch (action.type) {
-    case 'INIT_NEWS':
-      return action.payload;
-
-    case 'ADD_NEWS':
-      return [action.payload, ...state];
-
-    case 'UPDATE_NEWS': {
-      const { saleContractAddress, totalRaised } = action.payload;
-      const existingNewsIndex = state.findIndex(
-        news => news.saleContractAddress.toLowerCase() === saleContractAddress.toLowerCase()
-      );
-
-      if (existingNewsIndex === -1) return state;
-
-      const existingNews = state[existingNewsIndex];
-      const updatedNews = {
-        ...existingNews,
-        totalRaised
-      };
-
-      // 古いニュースを削除して新しいニュースを先頭に追加
-      const newState = [...state];
-      newState.splice(existingNewsIndex, 1);
-      return [updatedNews, ...newState];
-    }
-
-    case 'LAUNCH_NEWS': {
-      const { saleContractAddress } = action.payload;
-      return state.map(news => 
-        news.saleContractAddress.toLowerCase() === saleContractAddress.toLowerCase()
-          ? { ...news, launched: true }
-          : news
-      );
-    }
-
-    default:
-      return state;
-  }
-}
 
 
 export default function App({ Component, pageProps }: AppPropsWithWallet) {

@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button"
 import { motion, AnimatePresence } from "framer-motion"
 import router, { useRouter } from "next/router"
 import { ethers } from "ethers"
-import { News } from "@/types"
+import { News, SaleData } from "@/types"
 import { CreateNewsModal } from "@/components/CreateNews"
 import { useEffect, useState } from "react"
 import { useNewsStore } from "@/lib/NewsState"
 import { useSignerStore } from "@/lib/walletConnector"
 import { PieChart } from 'react-minimal-pie-chart'
+import { calcMarketcap } from "@/lib/UniswapRouter"
 
 // Font settings
 const ibmPlexSerif = IBM_Plex_Serif({
@@ -59,11 +60,11 @@ const Content = ({logoUrl, name, blockNumber, creator, description, positiveMark
           <>
             <div className="flex items-center gap-1">
               <span className="text-red-500">positive</span>
-              <span className="text-red-500">{(positiveMarketcap/(positiveMarketcap+negativeMarketcap)*100).toFixed(2)}%</span>
+              <span className="text-red-500">{(positiveMarketcap/(positiveMarketcap+negativeMarketcap)*100)?.toFixed(2)}%</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="text-blue-500">Negative</span>
-              <span className="text-blue-500">{(negativeMarketcap/(positiveMarketcap+negativeMarketcap)*100).toFixed(2)}%</span>
+              <span className="text-blue-500">{(negativeMarketcap/(positiveMarketcap+negativeMarketcap)*100)?.toFixed(2)}%</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="text-green-500">market cap</span>
@@ -76,10 +77,10 @@ const Content = ({logoUrl, name, blockNumber, creator, description, positiveMark
   </div>
 )
 
-function NewsItem({ news, isFirst }: { news: News, isFirst?: boolean }) {
+function NewsItem({ news, isFirst }: { news: SaleData, isFirst?: boolean }) {
   const router = useRouter()
   
-  const { saleContractAddress, creator, name, symbol, saleGoal, logoUrl, websiteUrl, twitterUrl, telegramUrl, description, blockNumber, transactionHash, totalRaised, launched, positiveMarketcap, negativeMarketcap } = news
+  const { saleContractAddress, creator, name, symbol, logoUrl, websiteUrl, twitterUrl, telegramUrl, description, blockNumber, transactionHash, totalRaised, launched, positiveMarketcap, negativeMarketcap } = news
 
   return (
     <AnimatePresence>
@@ -113,8 +114,8 @@ function NewsItem({ news, isFirst }: { news: News, isFirst?: boolean }) {
           description={description}
           blockNumber={Number(blockNumber)}
           launched={launched}
-          positiveMarketcap={Number(positiveMarketcap.toFixed(2))}
-          negativeMarketcap={Number(negativeMarketcap.toFixed(2))}
+          positiveMarketcap={Number(positiveMarketcap?.toFixed(2))}
+          negativeMarketcap={Number(negativeMarketcap?.toFixed(2))}
         />
       </motion.article>
     </AnimatePresence>
@@ -184,8 +185,8 @@ function SkeletonTopNews() {
   )
 }
 
-function NewsContainer({_news}: {_news: News[]}) {
-  const [news, setNews] = useState<News[]>([])
+function NewsContainer({_news}: {_news: SaleData[]}) {
+  const [news, setNews] = useState<SaleData[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -225,7 +226,7 @@ function NewsContainer({_news}: {_news: News[]}) {
   return (
     <div className="grid grid-cols-2 2xl:grid-cols-3 gap-6 w-full">
       <AnimatePresence>
-        {[...news].reverse()?.map((item, index) => (
+        {news.map((item, index) => (
           <NewsItem 
             key={`${item.saleContractAddress}-${index}`} 
             news={item} 
@@ -237,23 +238,44 @@ function NewsContainer({_news}: {_news: News[]}) {
   )
 }
 
+const calculateMarketcap = async (sale: SaleData) => {
+  const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
+  const [positiveMarketcap, negativeMarketcap] = sale.launched ? await Promise.all([
+    calcMarketcap(sale.positiveToken, provider),
+    calcMarketcap(sale.negativeToken, provider)
+  ]) : [0, 0];
+  return { ...sale, positiveMarketcap, negativeMarketcap };
+}
+
+
 export default function Component() {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const wallet = useSignerStore(state => state.signer)
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const _news = useNewsStore(state => state.news)
-  const [topNews, setTopNews] = useState<News | null>(null)
+  const [topNews, setTopNews] = useState<SaleData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isLaunched, setIsLaunched] = useState(false)
-  const [news, setNews] = useState<News[]>([])
+  const [news, setNews] = useState<SaleData[]>([])
 
   useEffect(() => {
-    const calculateMarketcap = (news: News) => news.positiveMarketcap + news.negativeMarketcap
-    if(_news.length > 0) {
-      setTopNews([..._news].sort((a, b) => calculateMarketcap(b) - calculateMarketcap(a))[0])
+    setNews(_news);
+    (async () => {
+      let biggestNews: SaleData|null = null;
+      let biggestMarketcap = 0;
+      const calculatedSaleData = await Promise.all(_news.map(async (sale) => {
+        const calculatedSale = await calculateMarketcap(sale)
+        const totalMarketcap = calculatedSale.positiveMarketcap + calculatedSale.negativeMarketcap;
+        console.log(totalMarketcap, biggestMarketcap)
+        if(totalMarketcap > biggestMarketcap) {
+          biggestMarketcap = totalMarketcap
+          biggestNews = calculatedSale
+        }
+        return calculatedSale
+      }))
+      setNews(calculatedSaleData)
+      setTopNews(biggestNews)
       setIsLoading(false)
-      setNews(_news)
-    }
+    })()
+    
   },[_news])
 
   useEffect(() => {
@@ -265,7 +287,6 @@ export default function Component() {
   },[isLaunched])
 
 
-  
   const openModal = () => setIsModalOpen(true)
   const closeModal = () => setIsModalOpen(false)
 
@@ -370,7 +391,7 @@ export default function Component() {
                   </div>
                   <div>
                     <span className="text-xs text-green-500">market cap</span>
-                    <span className="ml-2 text-[14px] font-bold text-green-500">{(topNews.positiveMarketcap + topNews.negativeMarketcap).toLocaleString()}</span>
+                    <span className="ml-2 text-[14px] font-bold text-green-500">{(topNews.positiveMarketcap + topNews.negativeMarketcap)?.toLocaleString()}</span>
                   </div>
                 </div>
               </div>

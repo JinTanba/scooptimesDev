@@ -1,5 +1,3 @@
-'use client'
-
 import { useSignerStore } from "@/lib/walletConnector";
 import { ethers } from "ethers"
 import { useEffect, useState } from "react";
