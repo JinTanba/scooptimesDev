@@ -381,18 +381,22 @@ export default function Component() {
                   />
                 </div>
                 <div className="flex flex-col items-start">
-                  <div className="mb-2">
-                    <span className="text-xs text-red-500">Positive:</span>
+                  {topNews.positiveMarketcap && topNews.negativeMarketcap && (
+                    <>
+                      <div className="mb-2">
+                        <span className="text-xs text-red-500">Positive:</span>
                     <span className="ml-2 text-[14px] font-bold text-red-500">{Number(topNews.positiveMarketcap).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                   </div>
                   <div className="mb-2">
                     <span className="text-xs text-blue-500">Negative:</span>
                     <span className="ml-2 text-[14px] font-bold text-blue-500">{Number(topNews.negativeMarketcap).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-green-500">market cap</span>
-                    <span className="ml-2 text-[14px] font-bold text-green-500">{(topNews.positiveMarketcap + topNews.negativeMarketcap)?.toLocaleString()}</span>
-                  </div>
+                      </div>
+                      <div>
+                        <span className="text-xs text-green-500">market cap</span>
+                        <span className="ml-2 text-[14px] font-bold text-green-500">{(topNews.positiveMarketcap + topNews.negativeMarketcap)?.toLocaleString()}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </article>

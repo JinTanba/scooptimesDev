@@ -28,7 +28,7 @@ type NewsState = {
   stopPolling: () => void;
 }
 
-
+// @ts-ignore
 export const useNewsStore = create<NewsState>((set: any) => {
 
   const fetchInitialData = async () => {
