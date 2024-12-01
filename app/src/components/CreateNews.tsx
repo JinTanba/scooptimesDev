@@ -60,7 +60,7 @@ interface NewsItemProps {
   
     return (
       <div className={`${ibmPlexSerif.className}`}>
-        <h3 className="text-2xl font-semibold mb-4 border-b-2 border-black pb-2">Token Details</h3>
+        <h3 className="text-2xl font-semibold mb-4 border-b-2 border-black pb-2">Topic Detail</h3>
         <div className="mb-4">
           <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Title(TokenName)</label>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} id="title" className="border-2 border-gray-300 rounded-none" />
@@ -72,7 +72,7 @@ interface NewsItemProps {
         </div>
         
         <div className="mb-4">
-          <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">Body</label>
+          <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
           <Textarea value={bio} onChange={(e) => setBio(e.target.value)} id="bio" className="border-2 border-gray-300 rounded-none" rows={4} />
         </div>
         <div className="mt-6">
