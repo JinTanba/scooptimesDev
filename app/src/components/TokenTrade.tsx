@@ -521,8 +521,8 @@ export default function TokenTrade() {
             {isLoading ? 'Processing...' : 
              isSuccess ? 'Purchase Successful!' :
              article?.launched 
-              ? activeTab === 'buy' ? `pay ${amount} ETH / get ${article.symbol}` : `selling ${amount} ${article.symbol} (${activePosition})`
-              : activeTab === 'buy' ? `pay ${amount} ETH / get ${article.symbol}` : `selling ${amount} ${article.symbol} (${activePosition})`
+              ? activeTab === 'buy' ? `pay ${amount} ETH / get ${article.symbol} (${activePosition})` : `selling ${amount} ${article.symbol} (${activePosition})`
+              : activeTab === 'buy' ? `pay ${amount} ETH / get ${article.symbol}` : `selling ${amount} ${article.symbol}`
             }
             {isSuccess && (
               <span className="ml-2 animate-ping">🎉</span>
