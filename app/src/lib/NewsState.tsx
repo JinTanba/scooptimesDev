@@ -94,25 +94,24 @@ type NewsState = {
   subscribeToEvents: () => void;
   unsubscribeFromEvents: () => void;
 }
-
-export const useNewsStore = create<NewsState>((set) => {
-  let tokensBoughtUnsubscribe: (() => void) | null = null;
-  let saleLaunchedUnsubscribe: (() => void) | null = null;
+//@ts-ignore
+export const useNewsStore = create<NewsState>((set: any) => {
 
   return {
     news: [],
+    // @ts-ignore
     addNews: (news: News) => set((state) => ({ 
       news: [news, ...state.news] 
     })),
-    updateNews: (saleAddress: string, totalRaised: string) => set((state) => ({
-      news: state.news.map(n => 
+    updateNews: (saleAddress: string, totalRaised: string) => set((state:any) => ({
+      news: state.news.map((n:any) => 
         n.saleContractAddress.toLowerCase() === saleAddress.toLowerCase()
           ? { ...n, totalRaised }
           : n
       )
     })),
-    launchNews: (saleAddress: string) => set((state) => ({
-      news: state.news.map(n =>
+    launchNews: (saleAddress: string) => set((state: any) => ({
+      news: state.news.map((n: any) =>
         n.saleContractAddress.toLowerCase() === saleAddress.toLowerCase()
           ? { ...n, launched: true }
           : n
@@ -132,7 +131,7 @@ export const useNewsStore = create<NewsState>((set) => {
 
         console.log('Processing events...');
         const processedData = await Promise.all(
-          events.map(async (event) => {
+          events.map(async (event: any) => {
             const saleContractAddress = event.saleContractAddress;
             const saleContract = new ethers.Contract(
               saleContractAddress, 

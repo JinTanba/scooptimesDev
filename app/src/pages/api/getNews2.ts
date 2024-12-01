@@ -65,7 +65,7 @@ export default async function handler(
 
     // Process events and fetch additional data
     const processedData = await Promise.all(
-      events.map(async (event) => {
+      events.map(async (event: any) => {
         const saleContractAddress = event.saleContractAddress;
         const saleContract = new ethers.Contract(saleContractAddress, saleArtifact.abi, provider);
         
