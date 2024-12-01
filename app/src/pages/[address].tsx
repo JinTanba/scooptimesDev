@@ -454,6 +454,7 @@ export default function Page() {
     if (isLoadingComments && !isAdding) return;
     
     try {
+      console.log('event/////')
       if (!isAdding) setIsLoadingComments(true);
       const response = await fetch(`/api/getCommentTree?address=${address}`);
       const result = await response.json();

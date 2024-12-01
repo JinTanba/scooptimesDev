@@ -117,6 +117,9 @@ async function buildCommentTree(address: string): Promise<CommentTreeResult> {
     .eq('newsAddress', address)
     .order('created_at', { ascending: false })
 
+  console.log(comments)
+
+   console.log("ERROR:", error)
   if (error) {
     console.error('Error fetching comments:', error)
     return {
@@ -206,11 +209,14 @@ async function buildCommentTree(address: string): Promise<CommentTreeResult> {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log("🎄🎄")
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' })
   }
 
   const { address } = req.query
+
+  console.log("🎄",address)
 
   if (!address || typeof address !== 'string') {
     return res.status(400).json({ message: 'Address is required' })
