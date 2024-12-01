@@ -234,14 +234,14 @@ interface NewsItemProps {
             setRelatedLinks={setRelatedLinks} 
             relatedLinks={relatedLinks ? relatedLinks : []} 
           />
-          <SocialLinks 
+          {/* <SocialLinks 
             twitter={twitter} 
             telegram={telegram} 
             website={website} 
             setTwitter={setTwitter} 
             setTelegram={setTelegram} 
             setWebsite={setWebsite} 
-          />
+          /> */}
         </div>
         <div className="space-y-6">
         <div>

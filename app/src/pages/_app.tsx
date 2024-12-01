@@ -86,7 +86,7 @@ export default function App({ Component, pageProps }: AppPropsWithWallet) {
     connectWallet,
     disconnectWallet,
     switchAccount
-  } = useMetaMaskWallet(true);
+  } = useMetaMaskWallet(false);
 
   const signer = useSignerStore(state => state.signer);
 

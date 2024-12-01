@@ -78,30 +78,59 @@ const ThemeSwitchableChart: React.FC<Props> = ({ contractAddress }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const series = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const resizeHandler = useRef<(() => void) | null>(null);
+  const isComponentMounted = useRef(true);
 
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    isComponentMounted.current = true;
 
-    chart.current = createChart(chartContainerRef.current, {
-      width: 800,
-      height: 300,
-      ...themes[isDarkMode ? 'dark' : 'light'],
-    });
+    const initChart = () => {
+      if (!chartContainerRef.current || !isComponentMounted.current) return;
 
-    series.current = chart.current.addCandlestickSeries({
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      borderVisible: false,
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
-    });
+      try {
+        chart.current = createChart(chartContainerRef.current, {
+          width: chartContainerRef.current.clientWidth || 800,
+          height: chartContainerRef.current.clientHeight || 300,
+          ...themes[isDarkMode ? 'dark' : 'light'],
+        });
+
+        series.current = chart.current.addCandlestickSeries({
+          upColor: '#26a69a',
+          downColor: '#ef5350',
+          borderVisible: false,
+          wickUpColor: '#26a69a',
+          wickDownColor: '#ef5350',
+        });
+
+        // Define resize handler
+        resizeHandler.current = () => {
+          if (chart.current && chartContainerRef.current && isComponentMounted.current) {
+            requestAnimationFrame(() => {
+              if (chart.current && chartContainerRef.current && isComponentMounted.current) {
+                chart.current.applyOptions({
+                  width: chartContainerRef.current.clientWidth,
+                  height: chartContainerRef.current.clientHeight,
+                });
+              }
+            });
+          }
+        };
+
+        // Add resize listener
+        window.addEventListener('resize', resizeHandler.current);
+      } catch (error) {
+        console.error('Failed to initialize chart:', error);
+      }
+    };
 
     const fetchData = async () => {
+      if (!isComponentMounted.current) return;
+
       try {
         const response = await fetch(`/api/getChartData?address=${contractAddress}`);
-        const data: CandleData[] = await response.json();
-        console.log('data-------------------------------\n\n', data);
-        if (series.current && data.length > 0) {
+        const data = await response.json();
+        
+        if (series.current && data.length > 0 && isComponentMounted.current) {
           series.current.setData(data);
         }
       } catch (error) {
@@ -109,31 +138,39 @@ const ThemeSwitchableChart: React.FC<Props> = ({ contractAddress }) => {
       }
     };
 
+    initChart();
     fetchData();
 
-    const handleResize = () => {
-      if (chart.current && chartContainerRef.current) {
-        chart.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
-        });
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    handleResize();
-
+    // Cleanup function
     return () => {
-      window.removeEventListener('resize', handleResize);
-      if (chart.current) {
-        chart.current.remove();
+      isComponentMounted.current = false;
+      
+      if (resizeHandler.current) {
+        window.removeEventListener('resize', resizeHandler.current);
       }
+
+      // Delayed cleanup of chart to ensure all operations are complete
+      setTimeout(() => {
+        if (chart.current) {
+          try {
+            chart.current.remove();
+          } catch (e) {
+            console.error('Error during chart cleanup:', e);
+          }
+          chart.current = null;
+        }
+        series.current = null;
+      }, 0);
     };
   }, [isDarkMode, contractAddress]);
 
   useEffect(() => {
-    if (chart.current) {
-      chart.current.applyOptions(themes[isDarkMode ? 'dark' : 'light']);
+    if (chart.current && isComponentMounted.current) {
+      try {
+        chart.current.applyOptions(themes[isDarkMode ? 'dark' : 'light']);
+      } catch (error) {
+        console.error('Failed to apply theme:', error);
+      }
     }
   }, [isDarkMode]);
 

@@ -56,6 +56,8 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
         method: "eth_chainId"
       });
 
+      console.log(chainId)
+
       if (chainId !== "0xaa36a7") {
         try {
           await (window as any).ethereum.request({

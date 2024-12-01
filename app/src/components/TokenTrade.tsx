@@ -10,7 +10,7 @@ import { calcMarketcap, UniswapV2Service } from "@/lib/UniswapRouter"
 import saleArtifact from "../EtherfunSale.json"
 import factoryArtifact from "../EtherFunFactory.json"
 import { useRouter } from 'next/router'
-import { useSignerStore } from '@/lib/walletConnector'
+import useMetaMaskWallet, { useSignerStore } from '@/lib/walletConnector'
 import { cn } from "@/lib/utils"
 import { Progress } from '@radix-ui/react-progress'
 
@@ -131,6 +131,7 @@ async function claimTokens(saleAddress: string, wallet: ethers.Signer) {
 }
 
 export default function TokenTrade() {
+  const {connectWallet} = useMetaMaskWallet(false);
   const wallet = useSignerStore(state => state.signer);
   const [article, setArticle] = useState<ArticleDisplay | null>(null)
   const [progressPercentage, setProgressPercentage] = useState(0)
@@ -148,10 +149,12 @@ export default function TokenTrade() {
   const [negativeTokenBalance, setNegativeTokenBalance] = useState('0')
   const [positiveMarketcap, setPositiveMarketcap] = useState(0)
   const [negativeMarketcap, setNegativeMarketcap] = useState(0)
+  const [isMarketCapLoading, setIsMarketCapLoading] = useState(true)
 
   const { toast } = useToast();
   const router = useRouter();
   const address = router.query.address as string;
+  // const { connect } = useConnect();
 
   const ethThreshold = ethers.utils.parseEther("1.5")
 
@@ -206,6 +209,7 @@ export default function TokenTrade() {
     if (!address || !wallet || !article) return;
 
     try {
+      setIsMarketCapLoading(true)
       const saleContract = new ethers.Contract(address, saleArtifact.abi, provider)
       const walletAddress = await wallet.getAddress()
 
@@ -245,8 +249,10 @@ export default function TokenTrade() {
         setPositiveMarketcap(_positiveMarketcap)
         setNegativeMarketcap(_negativeMarketcap)
       }
+      setIsMarketCapLoading(false)
     } catch (error) {
       console.error("Error fetching wallet data:", error)
+      setIsMarketCapLoading(false)
     }
   }, [address, wallet, article, positiveToken, negativeToken])
 
@@ -363,23 +369,29 @@ export default function TokenTrade() {
                 <div className="mb-4">
                   <Label className="text-xs text-gray-500 mb-1 block">Positive/Negative Market Cap Ratio</Label>
                   <div className="flex items-center">
-                    <div className="flex-grow h-4 bg-gray-200 rounded-full overflow-hidden">
-                      <div className="flex h-full">
-                        <div
-                          className="h-full bg-red-500 transition-all duration-300 ease-in-out"
-                          style={{ width: `${positivePercentage}%` }}
-                          role="progressbar"
-                          aria-valuenow={positivePercentage}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                        ></div>
-                        <div
-                          className="h-full bg-blue-500 transition-all duration-300 ease-in-out"
-                          style={{ width: `${negativePercentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    <span className="text-xs ml-2">{`${positivePercentage.toFixed(1)}/${negativePercentage.toFixed(1)}`}</span>
+                    {isMarketCapLoading ? (
+                      <Skeleton className="h-4 w-full rounded-full" />
+                    ) : (
+                      <>
+                        <div className="flex-grow h-4 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="flex h-full">
+                            <div
+                              className="h-full bg-red-500 transition-all duration-300 ease-in-out"
+                              style={{ width: `${positivePercentage}%` }}
+                              role="progressbar"
+                              aria-valuenow={positivePercentage}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                            ></div>
+                            <div
+                              className="h-full bg-blue-500 transition-all duration-300 ease-in-out"
+                              style={{ width: `${negativePercentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                        <span className="text-xs ml-2">{`${positivePercentage.toFixed(1)}/${negativePercentage.toFixed(1)}`}</span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <TabsContent value="positive">
@@ -412,23 +424,29 @@ export default function TokenTrade() {
                 <div className="mb-4">
                   <Label className="text-xs text-gray-500 mb-1 block">Positive/Negative Market Cap Ratio</Label>
                   <div className="flex items-center">
-                    <div className="flex-grow h-4 bg-gray-200 rounded-full overflow-hidden">
-                      <div className="flex h-full">
-                        <div
-                          className="h-full bg-red-500 transition-all duration-300 ease-in-out"
-                          style={{ width: `${positivePercentage}%` }}
-                          role="progressbar"
-                          aria-valuenow={positivePercentage}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                        ></div>
-                        <div
-                          className="h-full bg-blue-500 transition-all duration-300 ease-in-out"
-                          style={{ width: `${negativePercentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    <span className="text-xs ml-2">{`${positivePercentage.toFixed(1)}/${negativePercentage.toFixed(1)}`}</span>
+                    {isMarketCapLoading ? (
+                      <Skeleton className="h-4 w-full rounded-full" />
+                    ) : (
+                      <>
+                        <div className="flex-grow h-4 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="flex h-full">
+                            <div
+                              className="h-full bg-red-500 transition-all duration-300 ease-in-out"
+                              style={{ width: `${positivePercentage}%` }}
+                              role="progressbar"
+                              aria-valuenow={positivePercentage}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                            ></div>
+                            <div
+                              className="h-full bg-blue-500 transition-all duration-300 ease-in-out"
+                              style={{ width: `${negativePercentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                        <span className="text-xs ml-2">{`${positivePercentage.toFixed(1)}/${negativePercentage.toFixed(1)}`}</span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <TabsContent value="positive">
@@ -484,31 +502,40 @@ export default function TokenTrade() {
           </Tabs>
         )}
       
-        <Button 
-          onClick={handleBuySell}
-          className={`
-            ml-[14px] items-center w-[90%] h-12 mt-2 mb-[10px] rounded-[20px] 
-            ${isSuccess 
-              ? "bg-green-500 hover:bg-green-600 text-white" 
-              : amount > 0 
-                ? "text-white bg-black" 
-                : "bg-[#F3F3F3] hover:bg-[#E5E5E5] text-[#8F8F8F]"
+        {wallet ? (
+          <Button 
+            onClick={handleBuySell}
+            className={`
+              ml-[14px] items-center w-[90%] h-12 mt-2 mb-[10px] rounded-[20px] 
+              ${isSuccess 
+                ? "bg-green-500 hover:bg-green-600 text-white" 
+                : amount > 0 
+                  ? "text-white bg-black" 
+                  : "bg-[#F3F3F3] hover:bg-[#E5E5E5] text-[#8F8F8F]"
+              }
+              transition-all duration-300 ease-in-out
+            `}
+            variant="ghost"
+            disabled={amount <= 0 || isLoading}
+          >
+            {isLoading ? 'Processing...' : 
+             isSuccess ? 'Purchase Successful!' :
+             article?.launched 
+              ? activeTab === 'buy' ? `pay ${amount} ETH / get ${article.symbol}` : `selling ${amount} ${article.symbol} (${activePosition})`
+              : activeTab === 'buy' ? `pay ${amount} ETH / get ${article.symbol}` : `selling ${amount} ${article.symbol} (${activePosition})`
             }
-            transition-all duration-300 ease-in-out
-          `}
-          variant="ghost"
-          disabled={amount <= 0 || isLoading}
-        >
-          {isLoading ? 'Processing...' : 
-           isSuccess ? 'Purchase Successful!' :
-           article?.launched 
-            ? activeTab === 'buy' ? `pay ${amount} ETH / get ${article.symbol}` : `selling ${amount} ${article.symbol} (${activePosition})`
-            : activeTab === 'buy' ? `pay ${amount} ETH / get ${article.symbol}` : `selling ${amount} ${article.symbol} (${activePosition})`
-          }
-          {isSuccess && (
-            <span className="ml-2 animate-ping">🎉</span>
-          )}
-        </Button>
+            {isSuccess && (
+              <span className="ml-2 animate-ping">🎉</span>
+            )}
+          </Button>
+        ) : (
+          <Button
+            onClick={() => connectWallet()}
+            className="ml-[14px] items-center w-[90%] h-12 mt-2 mb-[10px] rounded-[20px] bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            Connect Wallet
+          </Button>
+        )}
 
         {article?.launched && ethers.BigNumber.from(balance).gt(0) && (
           <Button 
