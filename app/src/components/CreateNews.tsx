@@ -246,7 +246,7 @@ interface NewsItemProps {
         <div className="space-y-6">
         <div>
           <h3 className="text-2xl font-semibold mb-4 border-b-2 border-black pb-2">
-            Token Icon
+            Topic Icon
           </h3>
           <div className="mb-4">
             <label htmlFor="icon" className="block text-sm font-medium text-gray-700 mb-1">
