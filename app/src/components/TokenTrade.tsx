@@ -68,7 +68,6 @@ function TokenTradeSkeleton() {
   )
 }
 
-
 async function buyToken(saleAddress: string, amount: string, position: 'positive' | 'negative', wallet: ethers.Signer) {
   const factoryContract = new ethers.Contract(factoryAddress, factoryArtifact.abi, wallet)
   const tx = await factoryContract.buyToken(saleAddress, position === 'positive' ? 0 : 1, "", {
@@ -128,11 +127,11 @@ export default function TokenTrade() {
   const [positiveMarketcap, setPositiveMarketcap] = useState(0)
   const [negativeMarketcap, setNegativeMarketcap] = useState(0)
   const [isMarketCapLoading, setIsMarketCapLoading] = useState(true)
+  const [quickAmounts] = useState([0.001, 0.1, 1])
 
   const { toast } = useToast();
   const router = useRouter();
   const address = router.query.address as string;
-  // const { connect } = useConnect();
 
   const ethThreshold = ethers.utils.parseEther("1.5")
 
@@ -198,7 +197,7 @@ export default function TokenTrade() {
       setIsMarketCapLoading(false)
     }
   }, [address, wallet, currentNews])
-  //ここキモい
+
   useEffect(() => {
     if (address && !currentNews) {
       fetchData().then(() => setIsLoading(false))
@@ -210,7 +209,7 @@ export default function TokenTrade() {
       fetchWalletData()
     }
   }, [wallet, currentNews, fetchWalletData])
-  ///////////////
+
   useEffect(() => {
     console.log("TokenTrade.tsx: activeTab", activeTab)
     setAmount(0)
@@ -333,19 +332,45 @@ export default function TokenTrade() {
                 </div>
                 <TabsContent value="positive">
                   <Label className="text-base text-[10px] text-black font-thin">pay eth</Label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {quickAmounts.map((quickAmount) => (
+                      <Button
+                        key={quickAmount}
+                        onClick={() => setAmount(quickAmount)}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                      >
+                        {quickAmount}
+                      </Button>
+                    ))}
+                  </div>
                   <Input 
+                    value={amount}
                     onChange={(e) => setAmount(Number(e.target.value))}
                     type="number" 
-                    defaultValue="0" 
                     className="h-14 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#ff24247e]"
                   />
                 </TabsContent>
                 <TabsContent value="negative">
                   <Label className="text-base text-[10px] text-black font-thin">pay eth</Label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {quickAmounts.map((quickAmount) => (
+                      <Button
+                        key={quickAmount}
+                        onClick={() => setAmount(quickAmount)}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                      >
+                        {quickAmount}
+                      </Button>
+                    ))}
+                  </div>
                   <Input 
+                    value={amount}
                     onChange={(e) => setAmount(Number(e.target.value))}
                     type="number" 
-                    defaultValue="0" 
                     className="h-14 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#2929ff97]"
                   />
                 </TabsContent>
@@ -389,18 +414,18 @@ export default function TokenTrade() {
                 <TabsContent value="positive">
                   <Label className="text-base text-[10px] text-black font-thin">sell amount</Label>
                   <Input 
+                    value={amount}
                     onChange={(e) => setAmount(Number(e.target.value))}
                     type="number" 
-                    defaultValue="0" 
                     className="h-14 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#ff24247e]"
                   />
                 </TabsContent>
                 <TabsContent value="negative">
                   <Label className="text-base text-[10px] text-black font-thin">sell amount</Label>
                   <Input 
+                    value={amount}
                     onChange={(e) => setAmount(Number(e.target.value))}
                     type="number" 
-                    defaultValue="0" 
                     className="h-14 rounded-full text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 border-[#2929ff97]"
                   />
                 </TabsContent>
@@ -428,10 +453,25 @@ export default function TokenTrade() {
               </p>
               <div className="space-y-2">
                 <Label className="text-base text-[14px] font-normal text-black">amount {activeTab === 'buy' ? 'eth' : currentNews?.symbol}</Label>
+                {activeTab === 'buy' && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {quickAmounts.map((quickAmount) => (
+                      <Button
+                        key={quickAmount}
+                        onClick={() => setAmount(quickAmount)}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                      >
+                        {quickAmount}
+                      </Button>
+                    ))}
+                  </div>
+                )}
                 <Input 
+                  value={amount}
                   onChange={(e) => setAmount(Number(e.target.value))}
                   type="number" 
-                  defaultValue="0" 
                   className="h-14 rounded-full mt-0 text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 focus-visible:border-[#E5E5E5]"
                 />
               </div>
