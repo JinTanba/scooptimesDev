@@ -1,7 +1,7 @@
-// stores/signerStore.ts
 import { create } from 'zustand';
 import { ethers } from 'ethers';
 import { useState, useEffect, useCallback } from 'react';
+
 interface SignerState {
   signer: ethers.Signer | null;
   setSigner: (signer: ethers.Signer | null) => void;
@@ -14,6 +14,7 @@ export const useSignerStore = create<SignerState>((set) => ({
 
 interface MetaMaskWalletHook {
   error: string;
+  isConnected: boolean;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => Promise<void>;
   switchAccount: () => Promise<void>;
@@ -31,9 +32,57 @@ const baseSepolia = {
   blockExplorerUrls: ["https://sepolia.etherscan.io/"]
 };
 
+const WALLET_CONNECTED_KEY = 'isWalletConnected';
+
 function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
   const [error, setError] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
   const setSigner = useSignerStore(state => state.setSigner);
+
+  const checkAndSetupConnection = useCallback(async () => {
+    if (!(window as any).ethereum) return;
+
+    try {
+      const accounts = await (window as any).ethereum.request({
+        method: "eth_accounts"
+      });
+
+      if (accounts.length > 0) {
+        const chainId = await (window as any).ethereum.request({
+          method: "eth_chainId"
+        });
+
+        if (chainId !== "0xaa36a7") {
+          try {
+            await (window as any).ethereum.request({
+              method: "wallet_switchEthereumChain",
+              params: [{ chainId: "0xaa36a7" }]
+            });
+          } catch (switchError: any) {
+            if (switchError.code === 4902) {
+              await (window as any).ethereum.request({
+                method: "wallet_addEthereumChain",
+                params: [baseSepolia]
+              });
+            } else {
+              throw switchError;
+            }
+          }
+        }
+
+        const provider = new ethers.providers.Web3Provider((window as any).ethereum);
+        const signer = provider.getSigner();
+        setSigner(signer);
+        setIsConnected(true);
+        localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Failed to restore connection:", error);
+      return false;
+    }
+  }, [setSigner]);
 
   const connectWallet = useCallback(async () => {
     try {
@@ -56,8 +105,6 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
         method: "eth_chainId"
       });
 
-      console.log(chainId)
-
       if (chainId !== "0xaa36a7") {
         try {
           await (window as any).ethereum.request({
@@ -79,7 +126,9 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
       const provider = new ethers.providers.Web3Provider((window as any).ethereum);
       const signer = provider.getSigner();
       
-      setSigner(signer); // グローバルステートを更新
+      setSigner(signer);
+      setIsConnected(true);
+      localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
 
     } catch (error: any) {
       setError(error.message);
@@ -106,7 +155,9 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
       const provider = new ethers.providers.Web3Provider((window as any).ethereum);
       const signer = provider.getSigner();
       
-      setSigner(signer); // グローバルステートを更新
+      setSigner(signer);
+      setIsConnected(true);
+      localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
 
     } catch (error: any) {
       setError(error.message);
@@ -115,7 +166,9 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
 
   const disconnectWallet = useCallback(async () => {
     try {
-      setSigner(null); // グローバルステートを更新
+      setSigner(null);
+      setIsConnected(false);
+      localStorage.removeItem(WALLET_CONNECTED_KEY);
     } catch (error: any) {
       setError(error.message);
     }
@@ -123,9 +176,11 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
 
   useEffect(() => {
     if ((window as any).ethereum) {
-      const handleAccountsChanged = (accounts: string[]) => {
+      const handleAccountsChanged = async (accounts: string[]) => {
         if (accounts.length === 0) {
-          disconnectWallet();
+          await disconnectWallet();
+        } else {
+          await checkAndSetupConnection();
         }
       };
 
@@ -136,19 +191,29 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
       (window as any).ethereum.on("accountsChanged", handleAccountsChanged);
       (window as any).ethereum.on("chainChanged", handleChainChanged);
 
-      if (autoConnect) {
-        connectWallet();
-      }
+      // 初期化時の接続状態の復元
+      const initializeConnection = async () => {
+        const shouldConnect = autoConnect || localStorage.getItem(WALLET_CONNECTED_KEY) === 'true';
+        if (shouldConnect) {
+          const isRestored = await checkAndSetupConnection();
+          if (!isRestored && autoConnect) {
+            await connectWallet();
+          }
+        }
+      };
+
+      initializeConnection();
       
       return () => {
         (window as any).ethereum.removeListener("accountsChanged", handleAccountsChanged);
         (window as any).ethereum.removeListener("chainChanged", handleChainChanged);
       };
     }
-  }, [autoConnect, connectWallet, disconnectWallet]);
+  }, [autoConnect, connectWallet, disconnectWallet, checkAndSetupConnection]);
 
   return {
     error,
+    isConnected,
     connectWallet,
     disconnectWallet,
     switchAccount

@@ -68,28 +68,6 @@ function TokenTradeSkeleton() {
   )
 }
 
-interface currentNewsDisplay {
-  address: string
-  name: string
-  symbol: string
-  metadata: {
-    creator: string
-    saleGoal: string
-    logoUrl: string
-    websiteUrl: string
-    twitterUrl: string
-    telegramUrl: string
-    description: string
-    relatedLinks: string[]
-  }
-  totalRaised: string
-  launched: boolean
-  balance: string
-  positiveToken: string
-  negativeToken: string
-  positiveTokenBalance?: string
-  negativeTokenBalance?: string
-}
 
 async function buyToken(saleAddress: string, amount: string, position: 'positive' | 'negative', wallet: ethers.Signer) {
   const factoryContract = new ethers.Contract(factoryAddress, factoryArtifact.abi, wallet)
@@ -144,8 +122,6 @@ export default function TokenTrade() {
   const [activePosition, setActivePosition] = useState<'positive' | 'negative'>('positive')
   const [ethBalance, setEthBalance] = useState('0')
   const [currentNews, setCurrentNews] = useState<SaleData | null>(null)
-  const [positiveToken, setPositiveToken] = useState('')
-  const [negativeToken, setNegativeToken] = useState('')
   const [balance, setBalance] = useState('0')
   const [positiveTokenBalance, setPositiveTokenBalance] = useState('0')
   const [negativeTokenBalance, setNegativeTokenBalance] = useState('0')
@@ -160,7 +136,7 @@ export default function TokenTrade() {
 
   const ethThreshold = ethers.utils.parseEther("1.5")
 
-  const fetchData = useCallback(async () => {
+  const fetchData = async () => {
     if (!address) return;
 
     try {
@@ -170,68 +146,61 @@ export default function TokenTrade() {
       const percentage = totalRaisedBN.mul(100).div(ethThreshold).toNumber()
 
       setProgressPercentage(percentage)
-      setPositiveToken(sale?.positiveToken || "")
-      setNegativeToken(sale?.negativeToken || "")
 
     } catch (error) {
       console.error("Error fetching currentNews data:", error)
     }
-  }, [address, news])
+  }
 
   const fetchWalletData = useCallback(async () => {
     if (!address || !wallet || !currentNews) return;
-
+    console.log("🔥TokenTrade.tsx: fetchWalletData")
+    setIsMarketCapLoading(true)
     try {
-      setIsMarketCapLoading(true)
       const saleContract = new ethers.Contract(address, saleArtifact.abi, provider)
       const walletAddress = await wallet.getAddress()
 
-      const [_balance, walletEthBalance] = await Promise.all([
-        saleContract.tokenBalances(walletAddress),
-        provider.getBalance(walletAddress)
+      const erc20Positive = new ethers.Contract(
+        currentNews.positiveToken,
+        ["function balanceOf(address) view returns (uint256)"],
+        provider
+      )
+
+      const erc20Negative = new ethers.Contract(
+        currentNews.negativeToken,
+        ["function balanceOf(address) view returns (uint256)"],
+        provider
+      )
+
+      const [_balance, _walletEthBalance, _positiveBalance, _negativeBalance, _positiveMarketcap, _negativeMarketcap] = await Promise.all([
+          saleContract.tokenBalances(walletAddress),
+          provider.getBalance(walletAddress),
+          currentNews.launched ? erc20Positive.balanceOf(walletAddress) : ethers.BigNumber.from(0),
+          currentNews.launched ? erc20Negative.balanceOf(walletAddress) : ethers.BigNumber.from(0),
+          currentNews.launched ? calcMarketcap(currentNews.positiveToken, provider) : 0,
+          currentNews.launched ? calcMarketcap(currentNews.negativeToken, provider) : 0
       ])
 
+      console.log("TokenTrade.tsx: _positiveBalance", _positiveBalance)
+      console.log("TokenTrade.tsx: _negativeBalance", _negativeBalance)
+      console.log("TokenTrade.tsx: _positiveMarketcap", _positiveMarketcap)
+      console.log("TokenTrade.tsx: _negativeMarketcap", _negativeMarketcap)
+
+      setPositiveTokenBalance(ethers.utils.formatEther(_positiveBalance))
+      setNegativeTokenBalance(ethers.utils.formatEther(_negativeBalance))
+      setPositiveMarketcap(_positiveMarketcap)
+      setNegativeMarketcap(_negativeMarketcap)
       setBalance(_balance.toString())
-      setEthBalance(ethers.utils.formatEther(walletEthBalance))
-
-      if (positiveToken !== ethers.constants.AddressZero) {
-        const erc20Positive = new ethers.Contract(
-          positiveToken,
-          ["function balanceOf(address) view returns (uint256)"],
-          provider
-        )
-        const erc20Negative = new ethers.Contract(
-          negativeToken,
-          ["function balanceOf(address) view returns (uint256)"],
-          provider
-        )
-        const [_positiveBalance, _negativeBalance, _positiveMarketcap, _negativeMarketcap] = await Promise.all([
-          erc20Positive.balanceOf(walletAddress),
-          erc20Negative.balanceOf(walletAddress),
-          calcMarketcap(positiveToken, provider),
-          calcMarketcap(negativeToken, provider)
-        ])
-
-        console.log("TokenTrade.tsx: _positiveBalance", _positiveBalance)
-        console.log("TokenTrade.tsx: _negativeBalance", _negativeBalance)
-        console.log("TokenTrade.tsx: _positiveMarketcap", _positiveMarketcap)
-        console.log("TokenTrade.tsx: _negativeMarketcap", _negativeMarketcap)
-
-        setPositiveTokenBalance(ethers.utils.formatEther(_positiveBalance))
-        setNegativeTokenBalance(ethers.utils.formatEther(_negativeBalance))
-        setPositiveMarketcap(_positiveMarketcap)
-        setNegativeMarketcap(_negativeMarketcap)
-        
-      }
+      setEthBalance(ethers.utils.formatEther(_walletEthBalance))
       setIsMarketCapLoading(false)
     } catch (error) {
       console.error("Error fetching wallet data:", error)
       setIsMarketCapLoading(false)
     }
-  }, [address, wallet, currentNews, positiveToken, negativeToken])
-
+  }, [address, wallet, currentNews])
+  //ここキモい
   useEffect(() => {
-    if (address) {
+    if (address && !currentNews) {
       fetchData().then(() => setIsLoading(false))
     }
   }, [address, fetchData])
@@ -241,24 +210,18 @@ export default function TokenTrade() {
       fetchWalletData()
     }
   }, [wallet, currentNews, fetchWalletData])
-
+  ///////////////
   useEffect(() => {
     console.log("TokenTrade.tsx: activeTab", activeTab)
     setAmount(0)
   }, [activeTab, activePosition])
 
   const handleBuySell = async () => {
-    console.log("TokenTrade.tsx: handleBuySell", currentNews?.launched)
-    console.log("TokenTrade.tsx: activeTab", activeTab)
-    console.log("TokenTrade.tsx: activePosition", activePosition)
-    console.log("TokenTrade.tsx: amount", amount)
-    console.log("TokenTrade.tsx: wallet", wallet)
-    console.log("TokenTrade.tsx: currentNews", currentNews?.positiveToken)
-    console.log("TokenTrade.tsx: currentNews", currentNews?.negativeToken)
-    console.log("TokenTrade.tsx: currentNews", currentNews ? currentNews.saleContractAddress : "no address")
     if (!currentNews?.saleContractAddress || !amount || !wallet) return
-
+    console.log("🔥TokenTrade.tsx: handleBuySell")
     setIsLoading(true)
+    setIsMarketCapLoading(true)
+
     try {
       let txHash
       if (currentNews.launched) {
@@ -271,8 +234,7 @@ export default function TokenTrade() {
           ? await buyToken(currentNews.saleContractAddress, amount.toString(), activePosition, wallet)
           : await sellToken(currentNews.saleContractAddress, amount.toString(), wallet)
       }
-      
-      await fetchData()
+      await Promise.all([fetchData(), fetchWalletData()])
       setIsSuccess(true)
       setTimeout(() => setIsSuccess(false), 3000) // Reset success state after 3 seconds
     } catch (error) {
@@ -283,7 +245,9 @@ export default function TokenTrade() {
         variant: "destructive",
       })
     } finally {
+      console.log("🔥TokenTrade.tsx: handleBuySell: finally")
       setIsLoading(false)
+      setIsMarketCapLoading(false)
     }
   }
 
@@ -310,7 +274,6 @@ export default function TokenTrade() {
   }
 
   if (isLoading) return <TokenTradeSkeleton />
-
   if (!currentNews) return null
 
   const totalMarketcap = positiveMarketcap + negativeMarketcap
