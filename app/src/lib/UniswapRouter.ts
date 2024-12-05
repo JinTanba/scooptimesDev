@@ -193,7 +193,7 @@ async function _getETHPrice(provider: ethers.providers.JsonRpcProvider){
   const pair = new ethers.Contract(pairAddress, PAIR_ABI, provider);
   
   const [reserve0, reserve1] = await pair.getReserves();
-  const totalSupply = await token.totalSupply();
+  const totalSupply = "500000000000000000000000000";
   
   // トークンの価格計算
   const tokenPrice = Number(ethers.utils.formatEther(reserve1)) / Number(ethers.utils.formatUnits(reserve0, 18));
@@ -202,12 +202,7 @@ async function _getETHPrice(provider: ethers.providers.JsonRpcProvider){
   return marketcap;
  }
 
-export async function calcMarketcap(tokenAddress: string, provider: ethers.providers.JsonRpcProvider, ethPrice: number){
-  // const [ethPrice, pairAddress] = await Promise.all([
-  //   getEthPrice(),
-  //   router.getPair(tokenAddress, wethAddress)
-  // ]);
-  const pairAddress = await factory.getPair(tokenAddress, wethAddress)
+export async function calcMarketcap(pairAddress: string, tokenAddress: string, provider: ethers.providers.JsonRpcProvider, ethPrice: number){
   const marketcap = await getTokenMarketCap(provider, tokenAddress, pairAddress, ethPrice)
   console.log(" --------------------------   UniswapRouter.tsx: marketcap", {
     tokenAddress,

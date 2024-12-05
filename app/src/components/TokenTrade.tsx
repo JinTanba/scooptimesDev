@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import AdvancedTradingChart from "@/components/Chart"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { calcMarketcap, getEthPrice, UniswapV2Service } from "@/lib/UniswapRouter"
+import { getEthPrice, UniswapV2Service } from "@/lib/UniswapRouter"
 import saleArtifact from "../EtherfunSale.json"
 import factoryArtifact from "../EtherFunFactory.json"
 import { useRouter } from 'next/router'

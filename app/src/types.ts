@@ -158,4 +158,6 @@ export interface SaleData {
     negativeToken: string;       // text
     positiveMarketcap?: number;
     negativeMarketcap?: number;
+    positivePairAddress: string;
+    negativePairAddress: string;
 }

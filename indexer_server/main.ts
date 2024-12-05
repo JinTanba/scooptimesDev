@@ -8,7 +8,7 @@ dotenv.config();
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const factoryAddress = process.env.FACTORY_ADDRESS;
-
+const uniswapFactoryAddress = process.env.UNISWAP_FACTORY_ADDRESS;
 if (!supabaseUrl || !supabaseServiceRoleKey || !factoryAddress) {
   throw new Error('Supabase URL or Service Role Key or Factory Address is not set');
 }
@@ -35,6 +35,8 @@ interface SaleData {
     launched?: boolean;           // bool
     positiveToken?: string;       // text
     negativeToken?: string;       // text
+    positivePairAddress: string;        // text
+    negativePairAddress: string;        // text
 }
 
 // プロバイダーの接続確認
@@ -86,7 +88,9 @@ factory.on("SaleCreated", async (
         telegramUrl,
         description,
         blockNumber: event.blockNumber?.toString(),
-        transactionHash: event.transactionHash
+        transactionHash: event.transactionHash,
+        positivePairAddress: "",
+        negativePairAddress: ""
     };
 
     const { error } = await supabase.from("saleData").insert(saleData);
@@ -112,12 +116,16 @@ factory.on("SaleLaunched", async (
             
         if (fetchError) throw fetchError;
 
+
         const [totalRaised, launched, positiveToken, negativeToken] = await Promise.all([
             saleContract.totalRaised(),
             saleContract.launched(),
             saleContract.positiveToken(),
             saleContract.negativeToken(),
         ]);
+
+        const [positivePairAddress, negativePairAddress] = await getLaunchedDetails(positiveToken, negativeToken);
+
 
         const { error: updateError } = await supabase
             .from("saleData")
@@ -128,7 +136,9 @@ factory.on("SaleLaunched", async (
                 positiveToken,
                 negativeToken,
                 blockNumber: event.blockNumber?.toString(),
-                transactionHash: event.transactionHash
+                transactionHash: event.transactionHash,
+                positivePairAddress,
+                negativePairAddress
             })
             .eq("saleContractAddress", saleContractAddress);
 
@@ -354,6 +364,7 @@ async function syncHistoricalSales() {
               // Factoryからメタデータを取得
               const metadata = await factory.getSaleMetadata(saleContractAddress);
 
+
               const saleData = {
                   saleContractAddress: saleContractAddress,
                   creator: event.args!.creator,
@@ -370,7 +381,14 @@ async function syncHistoricalSales() {
                   launched: launched,
                   positiveToken: positiveToken,
                   negativeToken: negativeToken
-              };
+              } as SaleData;
+
+              if (launched) {
+                const [positivePairAddress, negativePairAddress] = await getLaunchedDetails(positiveToken, negativeToken);
+                console.log("pairAddress", positivePairAddress, negativePairAddress);
+                saleData.positivePairAddress = positivePairAddress || "";
+                saleData.negativePairAddress = negativePairAddress || "";
+              }
 
               if (existingData) {
                   // 既存のデータを更新
@@ -410,6 +428,20 @@ async function syncHistoricalSales() {
   }
 }
 
+
+async function getLaunchedDetails(positiveToken: string, negativeToken: string) {
+    const wethAddress = "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14";
+    const FACTORY_ABI = ['function getPair(address tokenA, address tokenB) external view returns (address pair)'];
+    const factory = new ethers.Contract(uniswapFactoryAddress, FACTORY_ABI, provider);
+    const [positivePairAddress, negativePairAddress] = await Promise.all([
+      factory.getPair(positiveToken, wethAddress),
+      factory.getPair(negativeToken, wethAddress)
+    ]);
+    return [positivePairAddress, negativePairAddress];
+  }
+
+
+
 // メインの初期化関数を修正
 async function initialize() {
   try {
@@ -425,3 +457,4 @@ async function initialize() {
       throw error;
   }
 }
+

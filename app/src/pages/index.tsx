@@ -242,12 +242,11 @@ function NewsContainer({_news}: {_news: SaleData[]}) {
 const calculateMarketcap = async (sale: SaleData, currentEthPrice: number) => {
   console.log(sale.launched, typeof sale.launched)
   const [positiveMarketcap, negativeMarketcap] = sale.launched ? await Promise.all([
-    calcMarketcap(sale.positiveToken, provider, currentEthPrice),
-    calcMarketcap(sale.negativeToken, provider, currentEthPrice)
+    calcMarketcap(sale.positivePairAddress, sale.positiveToken, provider, currentEthPrice),
+    calcMarketcap(sale.negativePairAddress, sale.negativeToken, provider, currentEthPrice)
   ]) : [0, 0];
   return { ...sale, positiveMarketcap, negativeMarketcap };
 }
-
 
 export default function Component() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -257,17 +256,26 @@ export default function Component() {
   const [isLaunched, setIsLaunched] = useState(false)
   const [news, setNews] = useState<SaleData[]>([])
 
+  function findBiggestNews(news: SaleData[]) {
+    let biggestNews: SaleData | undefined;
+    let biggestTotal = 0;
+    for(const item of news) {
+      const total = (item.positiveMarketcap || 0) + (item.negativeMarketcap || 0);
+      if(total > biggestTotal) {
+        biggestTotal = total;
+        biggestNews = item;
+      }
+    }
+    return biggestNews;
+  }
+
   useEffect(() => {
-    setNews(_news)
-    const biggestNews = [..._news].reduce((prev, current) => {
-      const prevTotal = (prev.positiveMarketcap || 0) + (prev.negativeMarketcap || 0);
-      const currentTotal = (current.positiveMarketcap || 0) + (current.negativeMarketcap || 0);
-      return prevTotal > currentTotal ? prev : current;
-    }, _news[0]);
-    console.log("biggestNews", biggestNews)
-    setTopNews(biggestNews)
+    console.log("useEffect🔥🔥🔥🔥🔥🔥", _news)
+    setNews(_news);
+    setTopNews(findBiggestNews(_news) || null)
     setIsLoading(false)
   }, [_news]);
+
 
   useEffect(() => {
     if(isLaunched) {
@@ -328,9 +336,7 @@ export default function Component() {
         </AnimatePresence>
 
         <main className="mt-8 w-full flex flex-col items-center">
-          {isLoading ? (
-            <SkeletonTopNews />
-          ) : topNews ? (
+          {topNews ? (
             <article onClick={() => router.push(`/${topNews.saleContractAddress}`)} className="rounded-[19px] max-w-[910px] w-full bg-[#F5F5F5] h-[155px] flex items-center p-6">
               <div className="w-[65%] flex items-center gap-6">
                 <Avatar className="h-24 w-24 flex-shrink-0">
@@ -391,7 +397,7 @@ export default function Component() {
                 </div>
               </div>
             </article>
-          ) : null}
+          ) : <SkeletonTopNews />}
 
           <div className="flex gap-5 mt-6 mb-8 w-full max-w-[910px]">
             <button

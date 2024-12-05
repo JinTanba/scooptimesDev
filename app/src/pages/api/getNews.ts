@@ -19,7 +19,7 @@ async function fetchSaleData() {
   const [data, ethPrice] = await Promise.all([supabase.from('saleData').select('*'), getEthPrice()]);
   const sales = data.data as SaleData[];
   const salesInMarketCaps = await Promise.all([...sales].map(async sale=>{
-    const [positiveMarketcap, negativeMarketcap] = sale.launched ? await Promise.all([calcMarketcap(sale.positiveToken, provider, ethPrice), calcMarketcap(sale.negativeToken, provider, ethPrice)]) : [0, 0];
+    const [positiveMarketcap, negativeMarketcap] = sale.launched ? await Promise.all([calcMarketcap(sale.positivePairAddress, sale.negativePairAddress, provider, ethPrice), calcMarketcap(sale.negativePairAddress, sale.negativeToken, provider, ethPrice)]) : [0, 0];
     return {
       ...sale,
       positiveMarketcap,
