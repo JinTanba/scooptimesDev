@@ -32,12 +32,8 @@ export default function App({ Component, pageProps }: AppPropsWithWallet) {
    useEffect(() => {
      console.log("Hi")
      console.log("initializeEventListeners");
-      (async() => {
-        if(signer) {
-          initializeEventListeners();
-        }
-      })()
-   }, [signer]);
+     initializeEventListeners();
+   }, []);
 
   const {
     error,
