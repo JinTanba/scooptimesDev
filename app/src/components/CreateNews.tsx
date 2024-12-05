@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Toaster } from "@/components/ui/toaster";
 import factoryArtifact from "../EtherFunFactory.json";
 import { useSignerStore } from "@/lib/walletConnector"
-import { provider } from "@/lib/utils"
+import { factory, provider } from "@/lib/utils"
 const ibmPlexSerif = IBM_Plex_Serif({
     weight: ['400', '500', '600', '700'],
     subsets: ['latin'],
