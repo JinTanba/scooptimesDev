@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
+import { factory, provider } from "@/lib/utils";
 
 export interface DisplayData {
     name: string
@@ -39,7 +40,6 @@ const ibmPlexSerif = IBM_Plex_Serif({
 })
 
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c"
-const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65")
 
 export default function UserPage() {
     const wallet = useSignerStore(state => state.signer);
@@ -50,7 +50,7 @@ export default function UserPage() {
         async function getUserWalletAddress() {
             setIsLoading(true);
             try {
-                const factory = new ethers.Contract(factoryAddress, factoryArtifact.abi, provider);
+                
                 if (wallet) {
                     const address = await wallet.getAddress();
                     const userBoughtTokens = await factory.getUserBoughtTokens(address);

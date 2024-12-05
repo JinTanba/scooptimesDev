@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { ethers } from 'ethers'
 import { createClient } from '@supabase/supabase-js'
 import newsArtifact from "../../EtherfunSale.json"
+import { provider } from '@/lib/utils'
 
 const supabaseUrl = "https://lipbpiidmsjeuqemorzv.supabase.co"
 const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcGJwaWlkbXNqZXVxZW1vcnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE5MjE2MDksImV4cCI6MjA0NzQ5NzYwOX0.9u0nQ_2W99oFAfUMBp8KMyrQLfFkko55mgaV7AygzFU"
@@ -49,7 +50,6 @@ interface CommentTreeResult {
 }
 
 async function getBalance(newsAddress: string, userAddress: string, positiveToken?: string, negativeToken?: string): Promise<Balance> {
-  const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65")
   const newsContract = new ethers.Contract(newsAddress, newsArtifact.abi, provider)
   const balance = await newsContract.tokenBalances(userAddress).then((b: any) => b.toString())
 
@@ -130,7 +130,6 @@ async function buildCommentTree(address: string): Promise<CommentTreeResult> {
     }
   }
 
-  const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/63b354d57387411191e8c4819970577b")
   const newsContract = new ethers.Contract(address, newsArtifact.abi, provider)
   const [positiveToken, negativeToken] = await Promise.all([
     newsContract.positiveToken(),

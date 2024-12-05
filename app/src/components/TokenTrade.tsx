@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import AdvancedTradingChart from "@/components/Chart"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { calcMarketcap, UniswapV2Service } from "@/lib/UniswapRouter"
+import { calcMarketcap, getEthPrice, UniswapV2Service } from "@/lib/UniswapRouter"
 import saleArtifact from "../EtherfunSale.json"
 import factoryArtifact from "../EtherFunFactory.json"
 import { useRouter } from 'next/router'
@@ -15,9 +15,8 @@ import { cn } from "@/lib/utils"
 import { Progress } from '@radix-ui/react-progress'
 import { useNewsStore } from '@/lib/NewsState'
 import { SaleData } from '@/types'
-
+import { provider } from '@/lib/utils'
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c"
-const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65")
 
 function Skeleton({
   className,
@@ -171,24 +170,24 @@ export default function TokenTrade() {
         provider
       )
 
-      const [_balance, _walletEthBalance, _positiveBalance, _negativeBalance, _positiveMarketcap, _negativeMarketcap] = await Promise.all([
+      console.log(currentNews.launched, currentNews.launched ? 'TRUE' : 'FALSE')
+      const currentEthProce = await getEthPrice();
+      const [_balance, _walletEthBalance, _positiveBalance, _negativeBalance] = await Promise.all([
           saleContract.tokenBalances(walletAddress),
           provider.getBalance(walletAddress),
           currentNews.launched ? erc20Positive.balanceOf(walletAddress) : ethers.BigNumber.from(0),
           currentNews.launched ? erc20Negative.balanceOf(walletAddress) : ethers.BigNumber.from(0),
-          currentNews.launched ? calcMarketcap(currentNews.positiveToken, provider) : 0,
-          currentNews.launched ? calcMarketcap(currentNews.negativeToken, provider) : 0
       ])
 
       console.log("TokenTrade.tsx: _positiveBalance", _positiveBalance)
       console.log("TokenTrade.tsx: _negativeBalance", _negativeBalance)
-      console.log("TokenTrade.tsx: _positiveMarketcap", _positiveMarketcap)
-      console.log("TokenTrade.tsx: _negativeMarketcap", _negativeMarketcap)
+      console.log("TokenTrade.tsx: _positiveMarketcap", currentNews.positiveMarketcap)
+      console.log("TokenTrade.tsx: _negativeMarketcap", currentNews.negativeMarketcap)
 
       setPositiveTokenBalance(ethers.utils.formatEther(_positiveBalance))
       setNegativeTokenBalance(ethers.utils.formatEther(_negativeBalance))
-      setPositiveMarketcap(_positiveMarketcap)
-      setNegativeMarketcap(_negativeMarketcap)
+      setPositiveMarketcap(currentNews.positiveMarketcap || 0)
+      setNegativeMarketcap(currentNews.negativeMarketcap || 0)
       setBalance(_balance.toString())
       setEthBalance(ethers.utils.formatEther(_walletEthBalance))
       setIsMarketCapLoading(false)

@@ -12,8 +12,9 @@ if (!supabaseUrl || !anonKey) {
 
 const supabase = createClient(supabaseUrl, anonKey);
 
-async function fetchSaleData() {
-  const { data, error } = await supabase.from('saleData').select('*');
+async function fetchSaleData(owner: string) {
+  const res = await fetch(`/api/getNews?owner=${owner}`);
+  const data = await res.json();
   return data as SaleData[];
 }
 
@@ -23,7 +24,7 @@ type NewsState = {
   addNews: (news: SaleData) => void;
   updateNews: (saleAddress: string, totalRaised: string) => void;
   launchNews: (saleAddress: string) => void;
-  initializeEventListeners: (factoryAddress: string) => void;
+  initializeEventListeners: () => void;
   startPolling: () => void;
   stopPolling: () => void;
 }
@@ -31,9 +32,10 @@ type NewsState = {
 // @ts-ignore
 export const useNewsStore = create<NewsState>((set: any) => {
 
-  const fetchInitialData = async () => {
+  const fetchSaleDataWithMarketCap = async () => {
     try {
-      const saleData = await fetchSaleData();
+      const res = await fetch(`/api/getNews`);
+      const saleData = await res.json();
       console.log(saleData);
 
       const reversedSaleData = saleData.reverse();
@@ -42,6 +44,12 @@ export const useNewsStore = create<NewsState>((set: any) => {
       console.error('Error fetching initial data:', error);
     }
   };
+
+  const fetchSaleData = async () => {
+    const data = await supabase.from('saleData').select('*');
+    const saleData = data.data as SaleData[];
+    set({ news: saleData.reverse() });
+  }
 
   return {
     news: [],
@@ -62,9 +70,10 @@ export const useNewsStore = create<NewsState>((set: any) => {
             : n
         )
       })),
-    initializeEventListeners: async (factoryAddress: string) => {
+    initializeEventListeners: async (owner: string) => {
       console.log("initializeEventListeners")
-      await fetchInitialData();
+      await fetchSaleData();
+      await fetchSaleDataWithMarketCap();
       //supabaseの購読
       supabase.channel('saleData').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'saleData' }, (payload) => {
         console.log('Payload:', payload);

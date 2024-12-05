@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { BigNumber } from '@ethersproject/bignumber';
+import { provider } from '@/lib/utils'
 
 // UniswapV2 Router ABI (必要な関数のみ)
 const ROUTER_ABI = [
@@ -20,6 +21,7 @@ const ERC20_ABI = [
 const routerAddress = "0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3";
 const wethAddress = "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14";
 const factoryAddress = "0xF62c03E08ada871A0bEb309762E260a7a6a880E6"
+const factory = new ethers.Contract(factoryAddress, FACTORY_ABI, provider);
 
 interface SwapConfig {
   provider: ethers.providers.Provider;
@@ -156,8 +158,9 @@ export class UniswapV2Service {
 
 
 
-const getEthPrice = async () => {
+export const getEthPrice = async () => {
   const rpc = "https://mainnet.infura.io/v3/05c6709f3eed48eb89c7e82d7a43c0dc"
+  console.log(".....getEthPrice")
   const provider = new ethers.providers.JsonRpcProvider(rpc)
   return await _getETHPrice(provider)
 }
@@ -199,13 +202,11 @@ async function _getETHPrice(provider: ethers.providers.JsonRpcProvider){
   return marketcap;
  }
 
-export async function calcMarketcap(tokenAddress: string, provider: ethers.providers.JsonRpcProvider){
-  const factory = new ethers.Contract(factoryAddress, FACTORY_ABI, provider);
+export async function calcMarketcap(tokenAddress: string, provider: ethers.providers.JsonRpcProvider, ethPrice: number){
   // const [ethPrice, pairAddress] = await Promise.all([
   //   getEthPrice(),
   //   router.getPair(tokenAddress, wethAddress)
   // ]);
-  const ethPrice = await getEthPrice()
   const pairAddress = await factory.getPair(tokenAddress, wethAddress)
   const marketcap = await getTokenMarketCap(provider, tokenAddress, pairAddress, ethPrice)
   console.log(" --------------------------   UniswapRouter.tsx: marketcap", {

@@ -8,6 +8,7 @@ import { useEffect, useReducer, useState } from "react";
 import { News } from "@/types";
 import { useNewsStore } from "@/lib/NewsState";
 import router from "next/router";
+import { provider } from "@/lib/utils";
 
 interface WalletProps {
   wallet: ethers.Signer;
@@ -19,7 +20,6 @@ type AppPropsWithWallet = AppProps & {
 
 
 const testPrivateKey = "68bf6ec02461aecaa2d401ff255a39dc1f97a23f4755837b0a06391513101846";
-const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
 const testWallet = new ethers.Wallet(testPrivateKey, provider);
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c";
 
@@ -27,12 +27,17 @@ const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c";
 
 export default function App({ Component, pageProps }: AppPropsWithWallet) {
   const initializeEventListeners = useNewsStore(state => state.initializeEventListeners);
+  const signer = useSignerStore(state => state.signer);
 
    useEffect(() => {
      console.log("Hi")
-     console.log("initializeEventListeners")
-     initializeEventListeners(factoryAddress);
-   }, []);
+     console.log("initializeEventListeners");
+      (async() => {
+        if(signer) {
+          initializeEventListeners();
+        }
+      })()
+   }, [signer]);
 
   const {
     error,
@@ -41,7 +46,6 @@ export default function App({ Component, pageProps }: AppPropsWithWallet) {
     switchAccount
   } = useMetaMaskWallet(false);
 
-  const signer = useSignerStore(state => state.signer);
 
   return (
     <div className="bg-white min-h-screen max-w-screen overflow-hidden text-black">

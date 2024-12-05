@@ -13,7 +13,8 @@ import { useEffect, useState } from "react"
 import { useNewsStore } from "@/lib/NewsState"
 import { useSignerStore } from "@/lib/walletConnector"
 import { PieChart } from 'react-minimal-pie-chart'
-import { calcMarketcap } from "@/lib/UniswapRouter"
+import { calcMarketcap, getEthPrice } from "@/lib/UniswapRouter"
+import { provider } from "@/lib/utils"
 
 // Font settings
 const ibmPlexSerif = IBM_Plex_Serif({
@@ -238,11 +239,11 @@ function NewsContainer({_news}: {_news: SaleData[]}) {
   )
 }
 
-const calculateMarketcap = async (sale: SaleData) => {
-  const provider = new ethers.providers.JsonRpcProvider("https://sepolia.infura.io/v3/4d95e2bfc962495dafdb102c23f0ec65");
+const calculateMarketcap = async (sale: SaleData, currentEthPrice: number) => {
+  console.log(sale.launched, typeof sale.launched)
   const [positiveMarketcap, negativeMarketcap] = sale.launched ? await Promise.all([
-    calcMarketcap(sale.positiveToken, provider),
-    calcMarketcap(sale.negativeToken, provider)
+    calcMarketcap(sale.positiveToken, provider, currentEthPrice),
+    calcMarketcap(sale.negativeToken, provider, currentEthPrice)
   ]) : [0, 0];
   return { ...sale, positiveMarketcap, negativeMarketcap };
 }
@@ -257,26 +258,16 @@ export default function Component() {
   const [news, setNews] = useState<SaleData[]>([])
 
   useEffect(() => {
-    setNews(_news);
-    (async () => {
-      let biggestNews: SaleData|null = null;
-      let biggestMarketcap = 0;
-      const calculatedSaleData = await Promise.all(_news.map(async (sale) => {
-        const calculatedSale = await calculateMarketcap(sale)
-        const totalMarketcap = calculatedSale.positiveMarketcap + calculatedSale.negativeMarketcap;
-        console.log(totalMarketcap, biggestMarketcap)
-        if(totalMarketcap > biggestMarketcap) {
-          biggestMarketcap = totalMarketcap
-          biggestNews = calculatedSale
-        }
-        return calculatedSale
-      }))
-      setNews(calculatedSaleData)
-      setTopNews(biggestNews)
-      setIsLoading(false)
-    })()
-    
-  },[_news])
+    setNews(_news)
+    const biggestNews = [..._news].reduce((prev, current) => {
+      const prevTotal = (prev.positiveMarketcap || 0) + (prev.negativeMarketcap || 0);
+      const currentTotal = (current.positiveMarketcap || 0) + (current.negativeMarketcap || 0);
+      return prevTotal > currentTotal ? prev : current;
+    }, _news[0]);
+    console.log("biggestNews", biggestNews)
+    setTopNews(biggestNews)
+    setIsLoading(false)
+  }, [_news]);
 
   useEffect(() => {
     if(isLaunched) {
