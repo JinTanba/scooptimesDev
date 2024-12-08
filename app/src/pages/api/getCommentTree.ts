@@ -3,7 +3,9 @@ import { ethers } from 'ethers'
 import { createClient } from '@supabase/supabase-js'
 import newsArtifact from "../../EtherfunSale.json"
 import { provider } from '@/lib/utils'
-
+export const config = {
+  maxDuration: 300
+}
 const supabaseUrl = "https://lipbpiidmsjeuqemorzv.supabase.co"
 const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcGJwaWlkbXNqZXVxZW1vcnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE5MjE2MDksImV4cCI6MjA0NzQ5NzYwOX0.9u0nQ_2W99oFAfUMBp8KMyrQLfFkko55mgaV7AygzFU"
 const supabase = createClient(supabaseUrl, anonKey)
