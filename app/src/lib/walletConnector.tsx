@@ -86,6 +86,7 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
 
   const connectWallet = useCallback(async () => {
     try {
+      console.log("👉connectWallet");
       setError("");
 
       if (!(window as any).ethereum) {
@@ -104,6 +105,8 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
       const chainId = await (window as any).ethereum.request({
         method: "eth_chainId"
       });
+
+      console.log("👉chainId", chainId);
 
       if (chainId !== "0xaa36a7") {
         try {
@@ -125,7 +128,7 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
 
       const provider = new ethers.providers.Web3Provider((window as any).ethereum);
       const signer = provider.getSigner();
-      
+      console.log("👉signer", signer);
       setSigner(signer);
       setIsConnected(true);
       localStorage.setItem(WALLET_CONNECTED_KEY, 'true');

@@ -301,7 +301,7 @@ export default function Component() {
           </div>
           
           <div className="relative">
-            <div className="flex items-center justify-between py-3 relative">
+            {/* <div className="flex items-center justify-between py-3 relative">
               
               <div className="flex items-center ml-auto">
                 <Button
@@ -320,7 +320,7 @@ export default function Component() {
                   <span className="pr-4">create new topic]</span>
                 </Button>
               </div>
-            </div>
+            </div> */}
             <div className="absolute left-0 right-0 bottom-0 h-[1px] bg-neutral-200" />
             <div className="absolute left-0 right-0 bottom-[-3px] h-[1px] bg-neutral-200" />
           </div>

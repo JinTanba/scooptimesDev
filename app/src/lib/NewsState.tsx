@@ -72,16 +72,16 @@ export const useNewsStore = create<NewsState>((set: any) => {
       console.log("initializeEventListeners")
       const news = await fetchSaleData();
       set({ news: news })
-      const currentEthPrice = await getEthPrice()
+      const currentEthPrice = await getEthPrice();
       const newNews = await Promise.all(news.map(async item => {
-        console.log("🔥", item)
         const news = await calculateMarketcap(item, currentEthPrice);
         return {...item, positiveMarketcap: news.positiveMarketcap, negativeMarketcap: news.negativeMarketcap}
       }))
-      console.log('change global state!!!!!!')
-      set({ news: [...newNews] })
+      const sortedNews = [...newNews].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      set({ news: [...sortedNews] })
+
       supabase.channel('saleData').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'saleData' }, (payload) => {
-        console.log('Payload:', payload);
+        console.log("💣💣🔥booom!!!", payload)
       }).subscribe();
     }
   };

@@ -29,7 +29,7 @@ export default async function handler(
       const currValue = parseFloat(ethers.utils.formatEther(curr.totalRaised));
       
       candleData.push({
-        time: curr.timestamp.toNumber(), // ブロックチェーンから取得したタイムスタンプを使用
+        time: curr.timestamp.toNumber(), 
         open: prevValue,
         close: currValue,
         high: Math.max(prevValue, currValue),

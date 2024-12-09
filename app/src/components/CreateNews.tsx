@@ -373,6 +373,8 @@ async function createSale(
       }
 
       console.log(ethers.utils.parseEther('0.007').toString());
+
+      const factory = new ethers.Contract(factoryAddress, factoryArtifact.abi, wallet);
   
       const tx = await factory.createSale(
         name, 
