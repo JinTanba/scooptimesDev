@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { ethers } from 'ethers';
 import { useState, useEffect, useCallback } from 'react';
+import detectEthereumProvider from '@metamask/detect-provider';
 
 interface SignerState {
   signer: ethers.Signer | null;
@@ -39,28 +40,26 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
   const [isConnected, setIsConnected] = useState(false);
   const setSigner = useSignerStore(state => state.setSigner);
 
-  const checkAndSetupConnection = useCallback(async () => {
-    if (!(window as any).ethereum) return;
+  const checkAndSetupConnection = useCallback(async (providerArg?: any) => {
+    const provider = providerArg || await detectEthereumProvider();
+    if (!provider || !(provider as any).isMetaMask) {
+      return false;
+    }
 
     try {
-      const accounts = await (window as any).ethereum.request({
-        method: "eth_accounts"
-      });
+      const accounts = await (provider as any).request({ method: "eth_accounts" });
 
       if (accounts.length > 0) {
-        const chainId = await (window as any).ethereum.request({
-          method: "eth_chainId"
-        });
-
-        if (chainId !== "0xaa36a7") {
+        const chainId = await (provider as any).request({ method: "eth_chainId" });
+        if (chainId !== baseSepolia.chainId) {
           try {
-            await (window as any).ethereum.request({
+            await (provider as any).request({
               method: "wallet_switchEthereumChain",
-              params: [{ chainId: "0xaa36a7" }]
+              params: [{ chainId: baseSepolia.chainId }]
             });
           } catch (switchError: any) {
             if (switchError.code === 4902) {
-              await (window as any).ethereum.request({
+              await (provider as any).request({
                 method: "wallet_addEthereumChain",
                 params: [baseSepolia]
               });
@@ -70,8 +69,8 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
           }
         }
 
-        const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-        const signer = provider.getSigner();
+        const ethersProvider = new ethers.providers.Web3Provider(provider as any);
+        const signer = ethersProvider.getSigner();
         setSigner(signer);
         setIsConnected(true);
         localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
@@ -86,37 +85,32 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
 
   const connectWallet = useCallback(async () => {
     try {
-      console.log("👉connectWallet");
       setError("");
-
-      if (!(window as any).ethereum) {
-        throw new Error("Please install MetaMask to use this feature");
+      console.log('connectWallet')
+      const provider = await detectEthereumProvider();
+      console.log(provider)
+      if (!provider || !(provider as any).isMetaMask) {
+        throw new Error("MetaMaskをインストールまたは有効化してください");
       }
 
-      await (window as any).ethereum.request({
-        method: 'wallet_requestPermissions',
-        params: [{ eth_accounts: {} }]
-      });
 
-      const accounts = await (window as any).ethereum.request({
-        method: "eth_requestAccounts"
-      });
+      const accounts = await (provider as any).request({ method: "eth_requestAccounts" });
+      console.log(accounts)
+      if (accounts.length === 0) {
+        throw new Error("アカウントが取得できませんでした");
+      }
 
-      const chainId = await (window as any).ethereum.request({
-        method: "eth_chainId"
-      });
-
-      console.log("👉chainId", chainId);
-
-      if (chainId !== "0xaa36a7") {
+      const chainId = await (provider as any).request({ method: "eth_chainId" });
+      if (chainId !== baseSepolia.chainId) {
         try {
-          await (window as any).ethereum.request({
+          await (provider as any).request({
             method: "wallet_switchEthereumChain",
-            params: [{ chainId: "0xaa36a7" }]
+            params: [{ chainId: baseSepolia.chainId }]
           });
         } catch (switchError: any) {
+          console.log("switchError", switchError)
           if (switchError.code === 4902) {
-            await (window as any).ethereum.request({
+            await (provider as any).request({
               method: "wallet_addEthereumChain",
               params: [baseSepolia]
             });
@@ -126,14 +120,13 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
         }
       }
 
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-      const signer = provider.getSigner();
-      console.log("👉signer", signer);
+      const ethersProvider = new ethers.providers.Web3Provider(provider as any);
+      const signer = ethersProvider.getSigner();
       setSigner(signer);
       setIsConnected(true);
       localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
-
     } catch (error: any) {
+      console.log("error connectWallet", error)
       setError(error.message);
     }
   }, [setSigner]);
@@ -142,22 +135,20 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
     try {
       setError("");
 
-      if (!(window as any).ethereum) {
-        throw new Error("Please install MetaMask to use this feature");
+      const provider = await detectEthereumProvider();
+      if (!provider || !(provider as any).isMetaMask) {
+        throw new Error("MetaMaskをインストールまたは有効化してください");
       }
 
-      await (window as any).ethereum.request({
-        method: 'wallet_requestPermissions',
-        params: [{ eth_accounts: {} }]
-      });
+      // MetaMaskではeth_accountsで再取得することでアカウント変更をトリガー可能
+      const accounts = await (provider as any).request({ method: "eth_accounts" });
+      if (accounts.length === 0) {
+        await connectWallet();
+        return;
+      }
 
-      const accounts = await (window as any).ethereum.request({
-        method: "eth_accounts"
-      });
-
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-      const signer = provider.getSigner();
-      
+      const ethersProvider = new ethers.providers.Web3Provider(provider as any);
+      const signer = ethersProvider.getSigner();
       setSigner(signer);
       setIsConnected(true);
       localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
@@ -165,7 +156,7 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
     } catch (error: any) {
       setError(error.message);
     }
-  }, [setSigner]);
+  }, [setSigner, connectWallet]);
 
   const disconnectWallet = useCallback(async () => {
     try {
@@ -178,40 +169,51 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
   }, [setSigner]);
 
   useEffect(() => {
-    if ((window as any).ethereum) {
-      const handleAccountsChanged = async (accounts: string[]) => {
-        if (accounts.length === 0) {
-          await disconnectWallet();
-        } else {
-          await checkAndSetupConnection();
-        }
-      };
+    let currentProvider: any;
 
-      const handleChainChanged = () => {
-        window.location.reload();
-      };
+    const handleAccountsChanged = async (accounts: string[]) => {
+      if (accounts.length === 0) {
+        await disconnectWallet();
+      } else {
+        await checkAndSetupConnection(currentProvider);
+      }
+    };
 
-      (window as any).ethereum.on("accountsChanged", handleAccountsChanged);
-      (window as any).ethereum.on("chainChanged", handleChainChanged);
+    const handleChainChanged = () => {
+      // チェーンが変わったらリロード（状態整合を保つため）
+      window.location.reload();
+    };
 
-      // 初期化時の接続状態の復元
-      const initializeConnection = async () => {
+    const initializeConnection = async () => {
+      console.log('initializeConnection')
+      currentProvider = await detectEthereumProvider();
+      console.log(currentProvider)
+      if (currentProvider && currentProvider.isMetaMask) {
+        currentProvider.on("accountsChanged", handleAccountsChanged);
+        currentProvider.on("chainChanged", handleChainChanged);
+
         const shouldConnect = autoConnect || localStorage.getItem(WALLET_CONNECTED_KEY) === 'true';
         if (shouldConnect) {
-          const isRestored = await checkAndSetupConnection();
+          const isRestored = await checkAndSetupConnection(currentProvider);
           if (!isRestored && autoConnect) {
             await connectWallet();
           }
         }
-      };
+      } else {
+        // MetaMaskが見つからない場合はエラーをセット
+        console.log('MetaMaskが見つからない場合はエラーをセット')
+        setError("MetaMaskが検出されませんでした。インストールまたは有効化してください。");
+      }
+    };
 
-      initializeConnection();
-      
-      return () => {
-        (window as any).ethereum.removeListener("accountsChanged", handleAccountsChanged);
-        (window as any).ethereum.removeListener("chainChanged", handleChainChanged);
-      };
-    }
+    initializeConnection();
+
+    return () => {
+      if (currentProvider) {
+        currentProvider.removeListener("accountsChanged", handleAccountsChanged);
+        currentProvider.removeListener("chainChanged", handleChainChanged);
+      }
+    };
   }, [autoConnect, connectWallet, disconnectWallet, checkAndSetupConnection]);
 
   return {

@@ -10,6 +10,8 @@ import { IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { factory, provider } from "@/lib/utils";
+import { useNewsStore } from "@/lib/NewsState";
+import router from "next/router";
 
 export interface DisplayData {
     name: string
@@ -45,56 +47,49 @@ export default function UserPage() {
     const wallet = useSignerStore(state => state.signer);
     const [userTokenList, setUserTokenList] = useState<DisplayData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const _news = useNewsStore(state => state.news)
+
 
     useEffect(() => {
         async function getUserWalletAddress() {
             setIsLoading(true);
+            console.log("----------------  userBoughtTokens  -----------------")
             try {
-                
                 if (wallet) {
+                    console.log("----------------  wallet  -----------------")
                     const address = await wallet.getAddress();
-                    const userBoughtTokens = await factory.getUserBoughtTokens(address);
-                    
+                    let userBoughtTokens = await factory.getUserBoughtTokens(address);
+                    console.log("----------------  userBoughtTokens  -----------------", userBoughtTokens)
                     const tokenList = await Promise.all(
                         userBoughtTokens.map(async (tokenAddress: string) => {
+                            const saleData = _news.find(item => item.saleContractAddress === tokenAddress)
                             const saleContract = new ethers.Contract(
                                 tokenAddress, 
                                 [
                                     "function tokenBalances(address) external view returns (uint256)",
-                                    "function totalRaised() external view returns (uint256)",
-                                    "function positiveToken() external view returns (address)",
-                                    "function negativeToken() external view returns (address)"
                                 ], 
                                 provider
                             );
-        
-                            // 並列でfetchとbalance取得を実行
-                            const [fetchResponse, balance, positiveToken, negativeToken] = await Promise.all([
-                                fetch(`/api/getNewsDisplayData?address=${tokenAddress}`),
-                                saleContract.tokenBalances(address),
-                                saleContract.positiveToken(),
-                                saleContract.negativeToken()
-                            ]);
-        
-                            if (!fetchResponse.ok) {
-                                throw new Error(`API error: ${fetchResponse.status}`);
-                            }
-        
-                            const fetchData = await fetchResponse.json();
-                            if(fetchData.launched) {
-                                console.log(positiveToken, negativeToken)
-                                const positiveTokenContract = new ethers.Contract(positiveToken, ["function balanceOf(address) external view returns (uint256)"], provider);
-                                const negativeTokenContract = new ethers.Contract(negativeToken, ["function balanceOf(address) external view returns (uint256)"], provider);
-                                const [positiveTokenBalance, negativeTokenBalance] = await Promise.all([
-                                    positiveTokenContract.balanceOf(address),
-                                    negativeTokenContract.balanceOf(address)
-                                ]);
-                                fetchData.balance = `positive: ${ethers.utils.formatEther(positiveTokenBalance)} / negative: ${ethers.utils.formatEther(negativeTokenBalance)}`
-                            }
+                            const balance = await (async() => {
+                              if(saleData?.launched) {
+                                const positiveTokenContract = new ethers.Contract(saleData.positiveToken, ["function balanceOf(address) external view returns (uint256)"], provider);
+                                const negativeTokenContract = new ethers.Contract(saleData.negativeToken, ["function balanceOf(address) external view returns (uint256)"], provider);
+                                let [positiveTokenBalance, negativeTokenBalance] = await Promise.all([
+                                  positiveTokenContract.balanceOf(address),
+                                  negativeTokenContract.balanceOf(address)
+                                ])
+                                positiveTokenBalance = ethers.utils.formatEther(positiveTokenBalance)
+                                negativeTokenBalance = ethers.utils.formatEther(negativeTokenBalance)
+                                return `positive: ${positiveTokenBalance} / negative: ${negativeTokenBalance}`
+                              } else {
+                                const balance = await saleContract.tokenBalances(address)
+                                return ethers.utils.formatEther(balance)
+                              }
+                            })()
                             return {
-                                ...fetchData,
-                                balance: ethers.utils.formatEther(balance)
-                            };
+                                ...saleData,
+                                balance: balance
+                            }
                         })
                     );
         
@@ -113,14 +108,14 @@ export default function UserPage() {
             }
         }
         getUserWalletAddress();
-    }, [wallet]);
+    }, [wallet, _news]);
 
     return (
         <>
             <div className="max-w-[80%] mx-auto mt-4">
                 <Button
                     variant="ghost"
-                    onClick={() => window.history.back()}
+                    onClick={() => router.push('/')}
                     className="mb-1"
                 >
                     ← Back
