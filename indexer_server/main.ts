@@ -208,7 +208,6 @@ factory.on("TokensBought", async (
                   blockNumber: event.blockNumber?.toString(),
                   transactionHash: event.transactionHash,
                   totalRaised: totalRaised.toString(),
-                  tokenBalance: tokenBalance.toString(),
                   launched,
                   positiveToken,
                   negativeToken

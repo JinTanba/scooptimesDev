@@ -1,8 +1,0 @@
-{
-  "sepolia": {
-    "EtherFunFactory": {
-      "address": "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c",
-      "startBlock": 7018959
-    }
-  }
-}

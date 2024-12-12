@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@apollo/client": "^3.11.10",
+    "@metamask/detect-provider": "^2.0.0",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-icons": "^1.3.1",
