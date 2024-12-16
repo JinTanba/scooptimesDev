@@ -43,10 +43,10 @@ interface SaleData {
 
 interface NewsItemProps {
   news: SaleData
-  index: number
+  isFirst: boolean
 }
 
-function NewsItem({ news, index }: NewsItemProps) {
+function NewsItem({ news, isFirst }: NewsItemProps) {
   const [shouldAnimate, setShouldAnimate] = useState(false);
   const router = useRouter()
   const { 
@@ -65,20 +65,45 @@ function NewsItem({ news, index }: NewsItemProps) {
   const negativePercentage = (negativeMarketcap / totalMarketCap) * 100
 
   useEffect(() => {
+    setShouldAnimate(false);
     const timer = setTimeout(() => {
       setShouldAnimate(true);
-    }, index * 100); // Stagger the animation
+    }, isFirst ? 0 : 100);
 
     return () => clearTimeout(timer);
-  }, [index]);
+  }, [isFirst]);
+
+  useEffect(() => {
+    if (isFirst) {
+      const timer = setTimeout(() => {
+        setShouldAnimate(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isFirst]);
 
   return (
     <motion.div 
-      className="bg-white rounded-[12px] shadow-lg shadow-gray-200/50 border border-gray-100 p-4 h-[190px] w-[calc(100% - 2px)] flex flex-col"
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={shouldAnimate ? { scale: 1, opacity: 1 } : {}}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="bg-white rounded-[12px] shadow-lg shadow-gray-200/50 border border-gray-100 p-4 h-[190px] w-[calc(100% - 2px)] flex flex-col relative overflow-hidden"
+      initial={isFirst ? { x: -20, opacity: 0 } : {}}
+      animate={isFirst ? { 
+        x: [20, -15, 10, -5, 0],
+        opacity: 1,
+      } : {}}
+      transition={isFirst ? { 
+        duration: 0.5,
+        ease: "easeOut",
+        times: [0, 0.2, 0.4, 0.6, 0.8, 1],
+      } : {}}
     >
+      {isFirst && (
+        <motion.div
+          className="absolute inset-0 bg-green-300"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.2, 0] }}
+          transition={{ duration: 0.5, times: [0, 0.1, 1] }}
+        />
+      )}
       <div 
         className="cursor-pointer flex-grow"
         onClick={() => router.push(`/${saleContractAddress}`)}
@@ -221,10 +246,7 @@ function NewsContainer({ news: _news }: { news: SaleData[] }) {
   const [news, setNews] = useState<SaleData[]>([]);
 
   useEffect(() => {
-    setNews([]);
-    setTimeout(() => {
-      setNews(_news);
-    }, 100);
+    setNews(_news);
   }, [_news]);
 
   if (!news.length) {
@@ -241,7 +263,7 @@ function NewsContainer({ news: _news }: { news: SaleData[] }) {
         <NewsItem
           key={`${item.saleContractAddress}-${index}`}
           news={item}
-          index={index}
+          isFirst={index === 0}
         />
       ))}
     </div>
@@ -255,13 +277,11 @@ export default function Page() {
 
   useEffect(() => {
     console.log('news display', _news);
-    const filtered = activeTab === "launched" 
-      ? _news.filter(item => item.launched)
-      : _news;
-    setFilteredNews([]);
-    setTimeout(() => {
-      setFilteredNews(filtered);
-    }, 100);
+    setFilteredNews(
+      activeTab === "launched" 
+        ? _news.filter(item => item.launched)
+        : _news
+    );
   }, [activeTab, _news])
 
   return (

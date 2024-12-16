@@ -44,7 +44,6 @@ provider.on("block", (blockNumber: any) => {
     console.log("New block:", blockNumber);
 });
 
-initialize();
 console.log("Listening to events...", "[ SaleCreated, SaleLaunched, TokensBought, TokensSold, MetaUpdated]");
 
 factory.on("SaleCreated", async (
@@ -231,8 +230,6 @@ factory.on("TokensBought", async (
               .from("saleData")
               .update({
                   totalRaised: totalRaised.toString(),
-                  blockNumber: event.blockNumber?.toString(),
-                  transactionHash: event.transactionHash,
               })
               .eq("saleContractAddress", saleContractAddress);
 
