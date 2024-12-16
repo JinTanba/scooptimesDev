@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { BigNumber } from '@ethersproject/bignumber';
-import { provider } from '@/lib/utils'
+import { provider, ramdomProvider } from '@/lib/utils'
 
 // UniswapV2 Router ABI (必要な関数のみ)
 const ROUTER_ABI = [
@@ -189,24 +189,25 @@ async function _getETHPrice(provider: ethers.providers.JsonRpcProvider){
   pairAddress: string, // ETHとのペアアドレス
   ethPrice: number
  ): Promise<number> {
-  const token = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-  const pair = new ethers.Contract(pairAddress, PAIR_ABI, provider);
+  try {
+  const token = new ethers.Contract(tokenAddress, ERC20_ABI, ramdomProvider());
+  const pair = new ethers.Contract(pairAddress, PAIR_ABI, ramdomProvider());
   
   const [reserve0, reserve1] = await pair.getReserves();
-  const totalSupply = "500000000000000000000000000";
+  const totalSupply = await token.totalSupply();
   
   // トークンの価格計算
   const tokenPrice = Number(ethers.utils.formatEther(reserve1)) / Number(ethers.utils.formatUnits(reserve0, 18));
   
   const marketcap = Number(ethers.utils.formatUnits(totalSupply, 18)) * tokenPrice * ethPrice
   return marketcap;
+  } catch (error) {
+    console.log("-");
+    return 0
+  }
  }
 
 export async function calcMarketcap(pairAddress: string, tokenAddress: string, provider: ethers.providers.JsonRpcProvider, ethPrice: number){
-  const marketcap = await getTokenMarketCap(provider, tokenAddress, pairAddress, ethPrice)
-  console.log(" --------------------------   UniswapRouter.tsx: marketcap", {
-    tokenAddress,
-    marketcap
-  })
+  const marketcap = await getTokenMarketCap(ramdomProvider(), tokenAddress, pairAddress, ethPrice)
   return marketcap
  }

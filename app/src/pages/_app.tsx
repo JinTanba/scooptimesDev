@@ -22,13 +22,11 @@ import {
   QueryClientProvider,
   QueryClient,
 } from "@tanstack/react-query";
+import { Core } from '@walletconnect/core'
 
-const config = getDefaultConfig({
-  appName: 'Skin In The Game',
-  projectId: '66b5953284da115428beb75e95ada0b9',
-  chains: [sepolia],
-  ssr: false, // If your dApp uses server side rendering (SSR)
-});
+// 1. Get projectId
+const projectId = '66b5953284da115428beb75e95ada0b9'
+
 
 
 interface WalletProps {
@@ -38,13 +36,6 @@ interface WalletProps {
 type AppPropsWithWallet = AppProps & {
   Component: React.ComponentType<WalletProps>;
 };
-
-
-const testPrivateKey = "68bf6ec02461aecaa2d401ff255a39dc1f97a23f4755837b0a06391513101846";
-const testWallet = new ethers.Wallet(testPrivateKey, provider);
-const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c";
-const queryClient = new QueryClient();
-
 
 export default function App({ Component, pageProps }: AppPropsWithWallet) {
   const initializeEventListeners = useNewsStore(state => state.initializeEventListeners);
@@ -77,15 +68,10 @@ export default function App({ Component, pageProps }: AppPropsWithWallet) {
             <ConnectWallt signer={signer} disconnectWallet={disconnectWallet}/>
           )}
       </div>
-      <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
+
       <LazyMotion features={domAnimation}>
          <Component {...pageProps}/>
       </LazyMotion>
-      </RainbowKitProvider>
-      </QueryClientProvider>
-      </WagmiProvider>
     </div>
   );
 }

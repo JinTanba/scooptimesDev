@@ -1,7 +1,7 @@
 import { useSignerStore } from "@/lib/walletConnector";
-import { ethers } from "ethers"
 import { useEffect, useState } from "react";
-import factoryArtifact from "../EtherFunFactory.json"
+import { useNewsStore } from "@/lib/NewsState";
+import { ethers } from "ethers";
 import Link from "next/link"
 import Image from "next/image"
 import { Search, Loader2 } from 'lucide-react'
@@ -9,8 +9,6 @@ import { Button } from "@/components/ui/button"
 import { IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
-import { factory, provider } from "@/lib/utils";
-import { useNewsStore } from "@/lib/NewsState";
 import router from "next/router";
 
 export interface DisplayData {
@@ -30,6 +28,7 @@ export interface DisplayData {
     positiveToken?: string
     negativeToken?: string
     saleContractAddress?: string
+    tokenRaised?: string
 }
 
 const ibmPlexSans = IBM_Plex_Sans({
@@ -44,8 +43,6 @@ const ibmPlexSerif = IBM_Plex_Serif({
     display: 'swap',
 })
 
-const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c"
-
 export default function UserPage() {
     const wallet = useSignerStore(state => state.signer);
     const [userTokenList, setUserTokenList] = useState<DisplayData[]>([]);
@@ -53,63 +50,28 @@ export default function UserPage() {
     const _news = useNewsStore(state => state.news)
 
     useEffect(() => {
-        async function getUserWalletAddress() {
+        async function fetchUserTokens() {
+            if (!wallet) return;
             setIsLoading(true);
-            console.log("----------------  userBoughtTokens  -----------------")
             try {
-                if (wallet) {
-                    console.log("----------------  wallet  -----------------")
-                    const address = await wallet.getAddress();
-                    let userBoughtTokens = await factory.getUserBoughtTokens(address);
-                    console.log("----------------  userBoughtTokens  -----------------", userBoughtTokens)
-                    const tokenList = await Promise.all(
-                        userBoughtTokens.map(async (tokenAddress: string) => {
-                            const saleData = _news.find(item => item.saleContractAddress === tokenAddress)
-                            const saleContract = new ethers.Contract(
-                                tokenAddress, 
-                                [
-                                    "function tokenBalances(address) external view returns (uint256)",
-                                ], 
-                                provider
-                            );
-                            const balance = await (async() => {
-                              if(saleData?.launched) {
-                                const positiveTokenContract = new ethers.Contract(saleData.positiveToken, ["function balanceOf(address) external view returns (uint256)"], provider);
-                                const negativeTokenContract = new ethers.Contract(saleData.negativeToken, ["function balanceOf(address) external view returns (uint256)"], provider);
-                                let [positiveTokenBalance, negativeTokenBalance] = await Promise.all([
-                                  positiveTokenContract.balanceOf(address),
-                                  negativeTokenContract.balanceOf(address)
-                                ])
-                                positiveTokenBalance = ethers.utils.formatEther(positiveTokenBalance)
-                                negativeTokenBalance = ethers.utils.formatEther(negativeTokenBalance)
-                                return `positive: ${positiveTokenBalance} / negative: ${negativeTokenBalance}`
-                              } else {
-                                const balance = await saleContract.tokenBalances(address)
-                                return ethers.utils.formatEther(balance)
-                              }
-                            })()
-                            return {
-                                ...saleData,
-                                balance: balance
-                            }
-                        })
-                    );
-        
-                    console.log("🔥🔥🔥🔥🔥🔥tokenList", tokenList);
-                    setUserTokenList(
-                        tokenList.map(token => ({
-                            tokenRaised: ethers.utils.formatEther(token.totalRaised),
-                            ...token
-                        }))
-                    );
+                const address = await wallet.getAddress();
+                const res = await fetch('/api/getUserTokens', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ address, news: _news })
+                });
+                if(!res.ok) {
+                    throw new Error('Failed to fetch tokens');
                 }
+                const data = await res.json();
+                setUserTokenList(data.tokenList);
             } catch (error) {
-                console.error("Error fetching user wallet address:", error);
+                console.error(error);
             } finally {
                 setIsLoading(false);
             }
         }
-        getUserWalletAddress();
+        fetchUserTokens();
     }, [wallet, _news]);
 
     return (
@@ -134,9 +96,10 @@ export default function UserPage() {
     )
 }
 
-
-
 function UserTokenList({ userTokenList, wallet }: { userTokenList: DisplayData[], wallet: ethers.Signer | null }) {
+  // ここ以降はUIロジックのみ
+  // claimやsendは引き続きクライアント側で実行しても良いが、
+  // 同様にAPI Routeを使うことも可能。
   const [showModal, setShowModal] = useState(false);
   const [selectedToken, setSelectedToken] = useState<DisplayData | null>(null);
   const [recipient, setRecipient] = useState("");
@@ -145,7 +108,7 @@ function UserTokenList({ userTokenList, wallet }: { userTokenList: DisplayData[]
 
   const handleClaim = (tokenSymbol: string) => {
     console.log(`Claiming rewards for ${tokenSymbol}`);
-    // Implement claim logic here
+    // API経由にしたい場合は同様にfetchを利用する
   };
 
   const handleSendClick = (token: DisplayData) => {
@@ -224,7 +187,7 @@ function UserTokenList({ userTokenList, wallet }: { userTokenList: DisplayData[]
                   </TableCell>
                   <TableCell className={`font-medium ${ibmPlexSans.className} whitespace-nowrap`}>{token.name}</TableCell>
                   <TableCell className="whitespace-nowrap">{token.symbol}</TableCell>
-                  <TableCell className="whitespace-nowrap">{ethers.utils.formatEther(token.totalRaised).slice(0, 7)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{token.tokenRaised?.slice(0,7)}</TableCell>
                   <TableCell className="whitespace-nowrap">{token.launched ? 'Yes' : 'No'}</TableCell>
                   <TableCell className="whitespace-nowrap">{token.description.slice(0, 10)}...</TableCell>
                   <TableCell className="whitespace-nowrap">{token.balance}</TableCell>
@@ -261,7 +224,6 @@ function UserTokenList({ userTokenList, wallet }: { userTokenList: DisplayData[]
         </CardContent>
       </Card>
 
-      {/* トークン送信モーダル */}
       {showModal && selectedToken && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
           <div className="bg-white rounded-lg p-6 max-w-md w-full relative">

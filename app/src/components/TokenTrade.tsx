@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { ethers, BigNumber } from 'ethers'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,11 +11,10 @@ import saleArtifact from "../EtherfunSale.json"
 import factoryArtifact from "../EtherFunFactory.json"
 import { useRouter } from 'next/router'
 import useMetaMaskWallet, { useSignerStore } from '@/lib/walletConnector'
-import { cn } from "@/lib/utils"
-import { Progress } from '@radix-ui/react-progress'
+import { cn, ramdomProvider,provider } from "@/lib/utils"
 import { useNewsStore } from '@/lib/NewsState'
 import { SaleData } from '@/types'
-import { provider } from '@/lib/utils'
+
 const factoryAddress = "0x49f69e0C299cB89c733a73667F4cdE4d461E5d6c"
 
 function Skeleton({
@@ -101,6 +100,26 @@ async function sellInUniswap(tokenAddress: string, amount: BigNumber, wallet: et
   return txHash
 }
 
+async function getInToken(address: string, amountInEth: number) {
+  const tokenContract = new ethers.Contract(address, saleArtifact.abi, ramdomProvider());
+  const amountEthInWei = ethers.utils.parseEther(amountInEth.toString())
+  const result = await tokenContract.getTokenIn(amountEthInWei)
+  return ethers.utils.formatUnits(result.toString(), 18)
+}
+
+async function getInEth(address: string, amountInToken: number) {
+  const tokenContract = new ethers.Contract(address, saleArtifact.abi, ramdomProvider());
+  //eth => wei
+  const amountInTokenInWei = ethers.utils.parseUnits(amountInToken.toString(), 18)
+  try {
+    const result = await tokenContract.getEthIn(amountInTokenInWei)
+    return ethers.utils.formatEther(result.toString())
+  } catch (error) {
+    console.error("Error getting in eth:", error)
+    throw error
+  }
+}
+
 async function claimTokens(saleAddress: string, wallet: ethers.Signer) {
   const factory = new ethers.Contract(factoryAddress, factoryArtifact.abi, wallet)
   const tx = await factory.claim(saleAddress)
@@ -128,9 +147,13 @@ export default function TokenTrade() {
   const [isMarketCapLoading, setIsMarketCapLoading] = useState(true)
   const [quickAmounts] = useState([0.001, 0.1, 1])
 
+  // New state for token estimation
+  const [tokensEstimate, setTokensEstimate] = useState('0')
+
   const { toast } = useToast();
   const router = useRouter();
   const address = router.query.address as string;
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null); // Added here
 
   const ethThreshold = ethers.utils.parseEther("1.5")
 
@@ -155,34 +178,27 @@ export default function TokenTrade() {
     console.log("🔥TokenTrade.tsx: fetchWalletData")
     setIsMarketCapLoading(true)
     try {
-      const saleContract = new ethers.Contract(address, saleArtifact.abi, provider)
+      const saleContract = new ethers.Contract(address, saleArtifact.abi, ramdomProvider())
       const walletAddress = await wallet.getAddress()
 
       const erc20Positive = new ethers.Contract(
         currentNews.positiveToken,
         ["function balanceOf(address) view returns (uint256)"],
-        provider
+        ramdomProvider()
       )
 
       const erc20Negative = new ethers.Contract(
         currentNews.negativeToken,
         ["function balanceOf(address) view returns (uint256)"],
-        provider
+        ramdomProvider()
       )
 
-      console.log(currentNews.launched, currentNews.launched ? 'TRUE' : 'FALSE')
-      const currentEthProce = await getEthPrice();
       const [_balance, _walletEthBalance, _positiveBalance, _negativeBalance] = await Promise.all([
           saleContract.tokenBalances(walletAddress),
           provider.getBalance(walletAddress),
           currentNews.launched ? erc20Positive.balanceOf(walletAddress) : ethers.BigNumber.from(0),
           currentNews.launched ? erc20Negative.balanceOf(walletAddress) : ethers.BigNumber.from(0),
       ])
-
-      console.log("TokenTrade.tsx: _positiveBalance", _positiveBalance)
-      console.log("TokenTrade.tsx: _negativeBalance", _negativeBalance)
-      console.log("TokenTrade.tsx: _positiveMarketcap", currentNews.positiveMarketcap)
-      console.log("TokenTrade.tsx: _negativeMarketcap", currentNews.negativeMarketcap)
 
       setPositiveTokenBalance(ethers.utils.formatEther(_positiveBalance))
       setNegativeTokenBalance(ethers.utils.formatEther(_negativeBalance))
@@ -201,7 +217,7 @@ export default function TokenTrade() {
     if (address && !currentNews) {
       fetchData().then(() => setIsLoading(false))
     }
-  }, [address, fetchData])
+  }, [address])
 
   useEffect(() => {
     if (wallet) {
@@ -213,6 +229,38 @@ export default function TokenTrade() {
     console.log("TokenTrade.tsx: activeTab", activeTab)
     setAmount(0)
   }, [activeTab, activePosition])
+
+  useEffect(() => {
+    const updateTokenEstimate = async () => {
+      if (amount > 0 && !currentNews?.launched && currentNews?.saleContractAddress) {
+        setTokensEstimate('...loading')
+        const getOut = activeTab === 'buy' ? getInToken : getInEth;
+        try {
+          const res = await getOut(currentNews?.saleContractAddress, amount)
+          console.log("TokenTrade.tsx: res", res)
+          setTokensEstimate(res)
+        } catch (error) {
+          console.error("Error estimating tokens:", error)
+          setTokensEstimate('Error')
+        }
+      } else {
+        setTokensEstimate('0')
+      }
+    };
+
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    debounceTimer.current = setTimeout(updateTokenEstimate, 300);
+
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [amount, currentNews, activeTab]);
+
 
   const handleBuySell = async () => {
     if (!currentNews?.saleContractAddress || !amount || !wallet) return
@@ -468,11 +516,16 @@ export default function TokenTrade() {
                   </div>
                 )}
                 <Input 
-                  value={amount}
+                  value={amount ? amount : ''}
                   onChange={(e) => setAmount(Number(e.target.value))}
                   type="number" 
                   className="h-14 rounded-full mt-0 text-center text-[24px] border-[#F3F3F3] text-black focus-visible:ring-0 focus-visible:border-[#E5E5E5]"
                 />
+                {amount > 0 && tokensEstimate !== '0' && (
+                  <p className="text-[14px] text-gray-600">
+                   {tokensEstimate} {activeTab === 'buy' ? currentNews.symbol : 'ETH'}
+                  </p>
+                )}
               </div>
             </div>
           </Tabs>
@@ -539,4 +592,3 @@ export default function TokenTrade() {
     </div>
   )
 }
-

@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import { ethers } from 'ethers';
 import { useState, useEffect, useCallback } from 'react';
 import detectEthereumProvider from '@metamask/detect-provider';
-
+import { injectedProvider } from "thirdweb/wallets";
+ 
+const metamaskProvider = injectedProvider("io.metamask");
 interface SignerState {
   signer: ethers.Signer | null;
   setSigner: (signer: ethers.Signer | null) => void;
@@ -41,7 +43,7 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
   const setSigner = useSignerStore(state => state.setSigner);
 
   const checkAndSetupConnection = useCallback(async (providerArg?: any) => {
-    const provider = providerArg || await detectEthereumProvider();
+    const provider = injectedProvider("io.metamask");
     if (!provider || !(provider as any).isMetaMask) {
       return false;
     }
@@ -73,7 +75,6 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
         const signer = ethersProvider.getSigner();
         setSigner(signer);
         setIsConnected(true);
-        localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
         return true;
       }
       return false;
@@ -87,7 +88,7 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
     try {
       setError("");
       console.log('connectWallet')
-      const provider = await detectEthereumProvider();
+      const provider = injectedProvider("io.metamask");
       console.log(provider)
       if (!provider || !(provider as any).isMetaMask) {
         throw new Error("MetaMaskをインストールまたは有効化してください");
@@ -151,7 +152,6 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
       const signer = ethersProvider.getSigner();
       setSigner(signer);
       setIsConnected(true);
-      localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
 
     } catch (error: any) {
       setError(error.message);
@@ -162,7 +162,6 @@ function useMetaMaskWallet(autoConnect = true): MetaMaskWalletHook {
     try {
       setSigner(null);
       setIsConnected(false);
-      localStorage.removeItem(WALLET_CONNECTED_KEY);
     } catch (error: any) {
       setError(error.message);
     }

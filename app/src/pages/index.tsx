@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useEffect } from "react"
@@ -8,8 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { motion } from "framer-motion"
 import router, { useRouter } from "next/router"
-import { Globe, MessageCircle, Star, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import Link from 'next/link'
+import { BigNumber, ethers } from "ethers"
 
 const ibmPlexSerif = IBM_Plex_Serif({
   weight: ['400', '500', '600', '700'],
@@ -43,9 +43,11 @@ interface SaleData {
 
 interface NewsItemProps {
   news: SaleData
+  index: number
 }
 
-function NewsItem({ news }: NewsItemProps) {
+function NewsItem({ news, index }: NewsItemProps) {
+  const [shouldAnimate, setShouldAnimate] = useState(false);
   const router = useRouter()
   const { 
     saleContractAddress,
@@ -62,8 +64,21 @@ function NewsItem({ news }: NewsItemProps) {
   const positivePercentage = (positiveMarketcap / totalMarketCap) * 100
   const negativePercentage = (negativeMarketcap / totalMarketCap) * 100
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShouldAnimate(true);
+    }, index * 100); // Stagger the animation
+
+    return () => clearTimeout(timer);
+  }, [index]);
+
   return (
-    <div className="bg-white rounded-[12px] shadow-lg shadow-gray-200/50 border border-gray-100 p-4 h-[190px] w-[calc(100% - 5px)] flex flex-col">
+    <motion.div 
+      className="bg-white rounded-[12px] shadow-lg shadow-gray-200/50 border border-gray-100 p-4 h-[190px] w-[calc(100% - 2px)] flex flex-col"
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={shouldAnimate ? { scale: 1, opacity: 1 } : {}}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+    >
       <div 
         className="cursor-pointer flex-grow"
         onClick={() => router.push(`/${saleContractAddress}`)}
@@ -122,19 +137,16 @@ function NewsItem({ news }: NewsItemProps) {
         <div className="flex items-center justify-between text-gray-500 text-xs">
           <div>
             {launched 
-              ? `Market Cap: $${totalMarketCap.toLocaleString()}`
-              : `${totalRaised} ETH`
+              ? `Market Cap: $${totalMarketCap?.toLocaleString() || 0}`
+              : `${ethers.utils.formatEther(totalRaised || '0')} ETH`
             }
           </div>
-          <div className="flex items-center gap-3">
-            <Globe className="h-3 w-3" />
-            <MessageCircle className="h-3 w-3" />
-            <span>1</span>
-            <Star className="h-3 w-3" />
+          <div>
+            {launched ? 'Published' : 'Bonding Curve'}
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -206,13 +218,14 @@ function Navigation({ activeTab, setActiveTab }: { activeTab: string, setActiveT
 }
 
 function NewsContainer({ news: _news }: { news: SaleData[] }) {
-  const [news, setNews] = useState<SaleData[]>([])
+  const [news, setNews] = useState<SaleData[]>([]);
 
   useEffect(() => {
-    if (_news.length > 0) {
-      setNews(_news)
-    }
-  }, [_news])
+    setNews([]);
+    setTimeout(() => {
+      setNews(_news);
+    }, 100);
+  }, [_news]);
 
   if (!news.length) {
     return (
@@ -224,10 +237,11 @@ function NewsContainer({ news: _news }: { news: SaleData[] }) {
 
   return (
     <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {news.map((item) => (
+      {news.map((item, index) => (
         <NewsItem
-          key={item.saleContractAddress}
+          key={`${item.saleContractAddress}-${index}`}
           news={item}
+          index={index}
         />
       ))}
     </div>
@@ -240,11 +254,14 @@ export default function Page() {
   const [filteredNews, setFilteredNews] = useState(_news)
 
   useEffect(() => {
-    setFilteredNews(
-      activeTab === "launched" 
-        ? _news.filter(item => item.launched)
-        : _news
-    )
+    console.log('news display', _news);
+    const filtered = activeTab === "launched" 
+      ? _news.filter(item => item.launched)
+      : _news;
+    setFilteredNews([]);
+    setTimeout(() => {
+      setFilteredNews(filtered);
+    }, 100);
   }, [activeTab, _news])
 
   return (
@@ -259,5 +276,4 @@ export default function Page() {
     </div>
   )
 }
-
 
